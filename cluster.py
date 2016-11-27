@@ -1,14 +1,16 @@
 from math import *
 from numpy import *
 from numpy.linalg import norm, det
+import json
 import random as rn
 
 from tools import randomize_time, psn, get_distance
-from amplitude import  get_amplitude
+from amplitude import get_amplitude
+from station import Station
 
 
 class Cluster:
-    # Класс для представления кластера установки НЕВОД-ШАЛ
+    """Класс для представления кластера установки НЕВОД-ШАЛ"""
     area = 2.56  # Площадь станции
     width = 20  # Ширина кластера
     length = 20  # Длина кластера
@@ -21,6 +23,7 @@ class Cluster:
     st_amplitudes = [0, 0, 0, 0]  # Амплитуда в каждой станции
     real_time = [0, 0, 0, 0]  # Истинное время срабатывания станций
     rndm_time = [0, 0, 0, 0]  # Рандомизированное время срабатывания станций
+    rec_particles = [0, 0, 0, 0]  # Восстановленное число частиц в станциях
 
     def __init__(self, center, eas, length=20, width=20):
         self.center = array(center)
@@ -28,6 +31,14 @@ class Cluster:
         self.width = width
         self.eas = eas
 
+        self.stations = [
+            # Создаём станции кластера, задаём им координаты
+            Station([self.center[0] + self.width / 2, self.center[1] - self.length / 2, self.center[2]]),
+            Station([self.center[0] - self.width / 2, self.center[1] - self.length / 2, self.center[2]]),
+            Station([self.center[0] - self.width / 2, self.center[1] + self.length / 2, self.center[2]]),
+            Station([self.center[0] + self.width / 2, self.center[1] + self.length / 2, self.center[2]]),
+        ]
+        
         self.st_coord = [
             # Вычисляем координаты станций кластера
             array([self.center[0] + self.width / 2, self.center[1] - self.length / 2, self.center[2]]),
@@ -37,13 +48,18 @@ class Cluster:
         ]
 
     def time_func(self):
-        # Вычисляет времена истинные и рандомизированные времена срабатывания станций
+        """Вычисляет времена истинные и рандомизированные времена срабатывания станций"""
+        for station in self.stations:
+            station.real_time = (norm(self.eas.n * station.coordinates, ord=1) + self.eas.D) / self.eas.light_speed
+            station.rndm_time = randomize_time() + station.real_time
+
         for i in range(0, 4):
             self.real_time[i] = (norm(self.eas.n * self.st_coord[i], ord=1) + self.eas.D) / self.eas.light_speed
             self.rndm_time[i] = randomize_time() + self.real_time[i]
+        # self.record_event()
 
     def least_squares(self):
-        # Восстанавливает вектор прихода ШАЛ методом наименьших квадратов
+        """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
         self.time_func()  # Получили времена срабатывания станций
         if not self.coutn_particles():  # Если хотя бы одно станции не хватило частиц - кластер не сработал
             return False
@@ -102,7 +118,7 @@ class Cluster:
             return False
 
     def nkg(self, radius):
-        # Функция пространственного распределения Нишимуры-Каматы-Грейзена
+        """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
         m1 = self.eas.energy / pow(self.eas.m_rad, 2)  # Разбили формулу на четыре множителя
         m2 = gamma(4.5 - self.eas.age) / (2 * pi * gamma(self.eas.age) * gamma(4.5 - 2 * self.eas.age))
         m3 = pow(radius / self.eas.m_rad, self.eas.age - 2)
@@ -112,18 +128,41 @@ class Cluster:
         return ro  # Возвращает поверхностную плотность на расстоянии radius от оси ливня
 
     def coutn_particles(self):
-        # Считает число частиц, попавших в каждую станцию кластера
+        """Считает экспериментальное число частиц, попавших в каждую станцию кластера"""
         for i in range(0, 4):
             dist = get_distance(self.st_coord[i], self.eas.n, self.eas.x0, self.eas.y0)
-            self.st_particles[i] = psn(self.area * self.nkg(dist))
-            self.st_amplitudes[i] = self.st_particles[i] * get_amplitude()
+            self.st_particles[i] = psn(self.area * self.nkg(dist))  # Число частиц в станции
+
             if self.st_particles[i] == 0:  # Станция не сработала
                 self.st_particles = [0, 0, 0, 0]
                 self.st_failed[i] = 1
-                self.failed = True
+                self.failed = True  # Не сработал и кластер (четырёхкратные совпадения)
                 return False
+
+            for j in range(0, self.st_particles[i]):
+                self.st_amplitudes[i] += get_amplitude()  # Вычислили амплитуду в станции
+            self.st_particles[i] = self.st_amplitudes[i] / 17.9438881491  # Поделили на среднюю амплитуду
         return True
 
-    def rec_particles(self):
-        #  Восстанавливаем число частиц в станциях. Получаем точку, которую
-        pass
+    def recons_particles(self, suggest_x, suggest_y, average_n):
+        """Восстанавливаем число частиц в станциях. Получаем точку, в которой предполагаем центр ШАЛ и средний
+        восстановленный вектор ШАЛ"""
+        for i in range(0, 4):
+            dist = get_distance(self.st_coord[i], average_n, suggest_x, suggest_y)
+            self.rec_particles[i] = self.area * self.nkg(dist)  # Вычисляем, сколько тогда попадёт в каждую станцию
+
+    def record_event(self):
+        """Записывает событие в формате json"""
+        event = {
+            'energy': 'self.eas.energy',
+            'age': self.eas.age,
+            'theta': self.eas.theta,
+            'phi': self.eas.phi,
+            'real vector': str(self.eas.n),
+            'station coordinates': str(self.st_coord),
+            'station times': str(self.rndm_time),
+        }
+
+        filename = 'data/EAS_events.json'
+        with open(filename, 'w') as f_obj:
+            json.dump(event, f_obj, sort_keys=True, indent=4, separators=(',', ': '))
