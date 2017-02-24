@@ -67,7 +67,7 @@ for experiments in range(1):
                 # Получаем теоретические значения числа частиц
                 theoretical_n.append(cluster.stations[i].rec_particles)
 
-    func = functional(experimental_n, theoretical_n, sigma_n)
+    func = functional(experimental_n, sigma_n, theoretical_n)
     theoretical_n = []
 
     func_step1 = [[] for i in range(3)]  # Функционалы первого шага
@@ -80,7 +80,8 @@ for experiments in range(1):
                     for k in range(4):
                         # Получаем теоретические значения числа частиц
                         theoretical_n.append(cluster.stations[k].rec_particles)
-            func_step1[0].append(functional(experimental_n, theoretical_n, sigma_n))
+            func_step1[0].append(
+                functional(experimental_n, sigma_n, theoretical_n))
             func_step1[1].append(x)
             func_step1[2].append(y)
             theoretical_n = []
@@ -107,7 +108,8 @@ for experiments in range(1):
                     cluster.recons_particles(x, y, average_n)
                     for k in range(4):
                         theoretical_n.append(cluster.stations[k].rec_particles)
-            func_step2[0].append(functional(experimental_n, theoretical_n, sigma_n))
+            func_step2[0].append(
+                functional(experimental_n, sigma_n, theoretical_n))
             func_step2[1].append(x)
             func_step2[2].append(y)
             theoretical_n = []

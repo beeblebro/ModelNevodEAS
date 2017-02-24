@@ -3,17 +3,23 @@ import random as rn
 
 from cluster import Cluster
 from eas import Eas
-from tools import get_theta, functional, make_step
+from tools import get_theta, functional, make_step, count_theo
 from amplitude import get_av_amplitude, get_sqr_sigma
 
-
-f = open('data/arrival_point/dist_from_average.txt', 'w')
-for experiments in range(5):
+f = open('data/energy_and_age/energy_and_age.txt', 'w')
+for experiments in range(10):
     theta = get_theta()
     phi = rn.uniform(0, 360)
     x0 = rn.uniform(-50, 50)
     y0 = rn.uniform(-50, 50)
-    eas = Eas(theta, phi, x0, y0)
+    energy = 10**6
+    age = 1.3
+
+    eas = Eas(theta, phi, x0, y0, energy, age)
+
+    # Предполагаемые изначально энергия и возраст
+    start_energy = 10**6
+    start_age = 1.3
 
     clusters = [
         Cluster([-28.4, -7.8, -7.0], eas, 13.3, 12.4),
@@ -60,10 +66,15 @@ for experiments in range(5):
     for cluster in clusters:
         for i in range(4):
             # Считаем экспериментальные частицы в каждой станции
-            cluster.stations[i].particles = cluster.stations[i].amplitude /\
+            cluster.stations[i].particles = cluster.stations[i].amplitude / \
                                             fixed_av_amplitude
+
+            if cluster.stations[i].sigma_particles < 0:
+                print("Отрицательное число частиц в основном цикле")
+
             #  Считаем сигмы
-            cluster.stations[i].sigma_particles = sqrt(cluster.stations[i].particles * get_sqr_sigma())
+            cluster.stations[i].sigma_particles = sqrt(
+                cluster.stations[i].particles * get_sqr_sigma())
             if cluster.stations[i].sigma_particles == 0:
                 cluster.stations[i].sigma_particles = 1.3
 
@@ -83,32 +94,32 @@ for experiments in range(5):
     exp_n = tuple(exp_n)
     sigma_n = tuple(sigma_n)
 
-    for cluster in clusters:
-        cluster.rec_particles(average_x, average_y, pow(10, 4), 1.0, average_n)
-        for i in range(4):
-            # Получаем теоретические значения числа частиц
-            theo_n.append(cluster.stations[i].rec_particles)
+    theo_n = count_theo(clusters, average_n, average_x, average_y, start_energy,
+                        start_age)
 
     func = functional(exp_n, sigma_n, theo_n)
     # print(func)
 
-    step_1 = make_step(clusters, average_n, 100, 0, 0, exp_n, sigma_n, func)
+    step_1 = make_step(clusters, average_n, 100, 0, 0, start_energy, start_age,
+                       exp_n, sigma_n, func)
 
-    if step_1[0] == 0 and step_1[1] == 0:
-        step_1[0] = average_x
-        step_1[1] = average_y
+    if step_1['x'] == 0 and step_1['y'] == 0:
+        step_1['x'] = average_x
+        step_1['y'] = average_y
 
-    step_2 = make_step(clusters, average_n, 100 / 3, step_1[0], step_1[1],
-                       exp_n, sigma_n, step_1[2])
+    step_2 = make_step(clusters, average_n, 100 / 3, step_1['x'], step_1['y'],
+                       step_1['energy'], step_1['age'], exp_n, sigma_n,
+                       step_1['func'])
 
-    step_3 = make_step(clusters, average_n, 100 / 9, step_2[0], step_2[1],
-                       exp_n, sigma_n, step_2[2])
+    step_3 = make_step(clusters, average_n, 100 / 9, step_2['x'], step_2['y'],
+                       step_2['energy'], step_2['age'], exp_n, sigma_n,
+                       step_2['func'])
 
-    new_x = step_3[0]
-    new_y = step_3[1]
+    new_x = step_3['x']
+    new_y = step_3['y']
 
-    result_energy = step_3[3]
-    result_age = step_3[4]
+    result_energy = step_3['energy']
+    result_age = step_3['age']
 
     # print(x0, y0)
     # print(average_x, average_y)

@@ -1,12 +1,13 @@
 from cluster import Cluster
 from eas import Eas
 from tools import get_theta
+from numpy import array
 
 import random as rn
 
 
 with open('data/time/delta_time.txt', 'w') as time_file:
-    for experiments in range(100000):
+    for experiments in range(1):
         theta = get_theta()
         phi = rn.uniform(0, 360)
         x0 = rn.uniform(-50, 50)
@@ -38,11 +39,14 @@ with open('data/time/delta_time.txt', 'w') as time_file:
             continue
 
         min_time = min(clust_times)
-        max_time = max(clust_times)
 
-        delta_t = max_time - min_time
+        clust_times = array(clust_times)
+        clust_times -= min_time
 
+        delta_t = max(clust_times) - min(clust_times)
+        print(clust_times)
         print(experiments)
+        # print(delta_t)
 
         time_file.write(str(theta) + '\t' + str(phi) + '\t' + str(delta_t)
                         + '\n')

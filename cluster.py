@@ -4,7 +4,7 @@ from numpy.random import poisson
 from numpy.linalg import det
 import json
 
-from tools import randomize_time, get_distance, psn
+from tools import randomize_time, get_distance
 from amplitude import get_amplitude, get_av_amplitude, get_sqr_sigma
 from station import Station
 
@@ -25,7 +25,7 @@ class Cluster:
 
         self.times = []  # Времена срабатывания
 
-        self.stations = [
+        self.stations = (
             # Создаём станции кластера, задаём им координаты
             Station([self.center[0] + self.width / 2,
                      self.center[1] - self.length / 2,
@@ -42,7 +42,7 @@ class Cluster:
             Station([self.center[0] + self.width / 2,
                      self.center[1] + self.length / 2,
                      self.center[2]]),
-        ]
+        )
 
     def time_func(self):
         """Вычисляет времена времена срабатывания станций"""
@@ -138,14 +138,28 @@ class Cluster:
         # Возвращает поверхностную плотность на расстоянии radius от оси ливня
         return ro
 
+    def NKG(self, radius, energy, age):
+        """НКГ, в которой варьируются мощность и возраст"""
+        # Разбили формулу на четыре множителя
+        m1 = energy / pow(self.eas.m_rad, 2)
+        m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
+        m3 = pow(radius / self.eas.m_rad, age - 2)
+        m4 = pow(1 + radius / self.eas.m_rad, age - 4.5)
+
+        ro = m1 * m2 * m3 * m4
+        # Возвращает поверхностную плотность на расстоянии radius от оси ливня
+        return ro
+
     def model_amplitudes(self):
         """Моделирование амплитуд, полученных от станций"""
         for i in range(4):
             dist = get_distance(self.stations[i].coordinates, self.eas.n,
                                 self.eas.x0, self.eas.y0)
             # Число частиц в станции
-            self.stations[i].particles = int(self.stations[i].area *
-                                                 self.nkg(dist))
+            self.stations[i].particles = poisson(self.stations[i].area *
+                                                 self.eas.n[2] * self.nkg(dist))
+            if self.stations[i].particles < 0:
+                print("Отрицательное число частиц в классе кластера")
 
             # Станция не сработала
             if self.stations[i].particles == 0:
@@ -172,7 +186,7 @@ class Cluster:
             dist = get_distance(self.stations[i].coordinates, self.eas.n,
                                 self.eas.x0, self.eas.y0)
             # Число частиц в станции
-            self.stations[i].particles = psn(self.stations[i].area * self.nkg(dist))
+            self.stations[i].particles = poisson(self.stations[i].area * self.nkg(dist))
 
             # Станция не сработала
             if self.stations[i].particles == 0:
@@ -189,7 +203,14 @@ class Cluster:
         предполагаем центр ШАЛ и средний восстановленный вектор ШАЛ"""
         for station in self.stations:
             dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
-            station.rec_particles = station.area * self.nkg(dist)
+            station.rec_particles = station.area * self.eas.n[2] * self.nkg(dist)
+
+    def rec_particles(self, sug_x, sug_y, sug_energy, sug_age, average_n):
+        """Восстанавливаем число частиц, варьируя возраст и мощность"""
+        for station in self.stations:
+            dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
+            station.rec_particles = station.area * self.eas.n[2] * \
+                                    self.NKG(dist, sug_energy, sug_age)
 
     def record_event(self):
         """Записывает событие в формате json"""

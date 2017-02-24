@@ -1,9 +1,10 @@
 from math import pi, sin, cos
 from numpy import array
+import random as rn
 
 
 class Eas:
-    """Класс для представление широкого атмосферного ливня"""
+    """Класс для представления широкого атмосферного ливня"""
     light_speed = 0.299792458
 
     def __init__(self, theta, phi, x0=0, y0=0, energy=10**6, age=1.3):
@@ -21,4 +22,7 @@ class Eas:
                         sin(self.theta) * sin(self.phi),
                         cos(self.theta)])
 
+    def generate_energy(self):
+        """Сгенерировать энергию"""
+        self.energy = ((10 ** 6) / (1 - rn.random())) ** (2 / 3)
 
