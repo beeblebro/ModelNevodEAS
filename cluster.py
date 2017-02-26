@@ -205,7 +205,7 @@ class Cluster:
             dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
             station.rec_particles = station.area * self.eas.n[2] * self.nkg(dist)
 
-    def rec_particles(self, sug_x, sug_y, sug_energy, sug_age, average_n):
+    def rec_particles(self, average_n, sug_x, sug_y, sug_energy, sug_age):
         """Восстанавливаем число частиц, варьируя возраст и мощность"""
         for station in self.stations:
             dist = get_distance(station.coordinates, average_n, sug_x, sug_y)

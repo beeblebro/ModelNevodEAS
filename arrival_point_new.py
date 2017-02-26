@@ -84,7 +84,7 @@ for experiments in range(5):
     sigma_n = tuple(sigma_n)
 
     for cluster in clusters:
-        cluster.rec_particles(average_x, average_y, pow(10, 4), 1.0, average_n)
+        cluster.rec_particles(average_n, average_x, average_y, pow(10, 4), 1.0)
         for i in range(4):
             # Получаем теоретические значения числа частиц
             theo_n.append(cluster.stations[i].rec_particles)

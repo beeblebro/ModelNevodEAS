@@ -80,7 +80,7 @@ def functional(exp_n, sigma_n, theo_n):
 
     if len(sigma_n) == len(theo_n) == len(exp_n):
         for j in range(0, len(sigma_n)):
-            f += ((exp_n[j] - theo_n[j])**2) / pow(sigma_n[j], 2)
+            f += ((exp_n[j] - theo_n[j])**2) / (sigma_n[j]**2)
     else:
         print("Functional error#0")
         return False
@@ -101,17 +101,6 @@ def divide_square(center_x, center_y, side):
         result_x.append(left_corner_x + k * (new_side/2))
 
     return [result_x, result_y]
-'''
-    for k in [1, 3, 5]:
-        # Второй ряд
-        result_y.append(left_corner_y + 3 * (new_side/2))
-        result_x.append(left_corner_x + k * (new_side/2))
-
-    for k in [1, 3, 5]:
-        # Третий ряд
-        result_y.append(left_corner_y + 5 * (new_side/2))
-        result_x.append(left_corner_x + k * (new_side/2))
-'''
 
 
 def count_theo(clusters, average_n, x, y, energy, age):
@@ -119,7 +108,7 @@ def count_theo(clusters, average_n, x, y, energy, age):
     theo_n = []
 
     for cluster in clusters:
-        cluster.rec_particles(x, y, energy, age, average_n)
+        cluster.rec_particles(average_n, x, y, energy, age)
         for i in range(4):
             theo_n.append(cluster.stations[i].rec_particles)
 
@@ -142,7 +131,7 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     step3 = 100
 
     if r_func > l_func:
-        # Истинное значение энергии меньше текущего - будем шагать назад
+        # Если истинное значение энергии меньше текущего - будем шагать назад
         step1 = -step1
         step2 = -step2
         step3 = -step3
@@ -152,18 +141,18 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy, age_0))
     # Шагаем в нужную сторону, пока функционал не станет больше
-    while func < min_func:
+    while func <= min_func:
         min_func = func
         energy += step1
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy, age_0))
 
-    # Сделаем шаг в другую сторону
+    # Сделаем шаг в другую сторону, когда цикл while прервался
     energy -= step1
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy, age_0))
     # Продолжим шагать с меньшим шагом
-    while func < min_func:
+    while func <= min_func:
         min_func = func
         energy += step2
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
@@ -172,28 +161,12 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     energy -= step2
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy, age_0))
-    while func < min_func:
+    while func <= min_func:
         min_func = func
         energy += step3
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy, age_0))
     energy -= step3
-
-    # for k in range(10):
-    #     energy = energy_0 + 100000 * k
-    #
-    #     theo_n = count_theo(clusters, average_n, x, y, energy, age_0)
-    #
-    #     search['func'].append(functional(exp_n, sigma_n, theo_n))
-    #     search['energy'].append(energy)
-    #
-    # if min(search['func']) < min_func:
-    #     min_func = min(search['func'])
-    #     min_num = search['func'].index(min(search['func']))
-    #     new_energy = search['energy'][min_num]
-    # else:
-    #     new_energy = energy_0
-
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy, age_0))
 
@@ -203,7 +176,6 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
 def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
                min_func):
     """Поиск возраста"""
-    # search = {'func': [], 'age': []}
     # Функционал при меньшем возраста возраста
     l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                    energy_0, age_0 - 0.05))
@@ -225,52 +197,34 @@ def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     # Шагаем в нужную сторону, пока функционал не станет больше
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy_0, age))
-    while func < min_func:
+    while func <= min_func:
         min_func = func
         age += step1
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                 energy_0, age))
-    # Сделаем шаг в другую сторону
-    age -= step1
+                                                     energy_0, age))
 
+    # Сделаем шаг в другую сторону, вернёмся к последнему значению функционала
+    # которое было меньше минимального
+    age -= step1
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy_0, age))
     # Продолжим шагать с меньшим шагом
-    while functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                energy_0, age)) < min_func:
+    while func <= min_func:
         min_func = func
         age += step2
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy_0, age))
 
     age -= step2
-
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy_0, age))
-    while functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                energy_0, age)) < min_func:
+    while func <= min_func:
         min_func = func
         age += step3
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy_0, age))
 
     age -= step3
-
-    # for k in range(10):
-    #     age = age_0 + 0.05 * k
-    #
-    #     theo_n = count_theo(clusters, average_n, x, y, energy_0, age)
-    #
-    #     search['func'].append(functional(exp_n, sigma_n, theo_n))
-    #     search['age'].append(age)
-    #
-    # if min(search['func']) < min_func:
-    #     min_func = min(search['func'])
-    #     min_num = search['func'].index(min(search['func']))
-    #     new_age = search['age'][min_num]
-    # else:
-    #     new_age = age_0
-
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy_0, age))
 
@@ -279,7 +233,7 @@ def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
 
 def energy_age_search(clusters, average_n, x, y, exp_n, sigma_n, min_func):
     """Здесь варьируем энергию и возраст для данной точки"""
-    energy_0 = 10**6  # Исходное значение энергии
+    energy_0 = 10**4  # Исходное значение энергии
     age_0 = 1.3  # Исходное значение возраста
 
     a = search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n,
@@ -309,16 +263,11 @@ def make_step(clusters, average_n, side, start_x, start_y, start_energy,
               start_age, exp_n, sigma_n, min_func):
     step_cen = divide_square(start_x, start_y, side)
     step = {'func': [], 'x': [], 'y': [], 'energy': [], 'age': []}
-    theo_n = []
 
     for x in step_cen[0]:
         for y in step_cen[1]:
-            for cluster in clusters:
-                cluster.rec_particles(start_x, start_y, start_energy, start_age,
-                                      average_n)
-                for k in range(4):
-                    # Получаем теоретические значения числа частиц
-                    theo_n.append(cluster.stations[k].rec_particles)
+            theo_n = count_theo(clusters, average_n, x, y, start_energy,
+                                start_age)
             a = energy_age_search(clusters, average_n, x, y, exp_n, sigma_n,
                                   functional(exp_n, sigma_n, theo_n))
             step['func'].append(a['func'])
@@ -326,8 +275,6 @@ def make_step(clusters, average_n, side, start_x, start_y, start_energy,
             step['y'].append(y)
             step['energy'].append(a['energy'])
             step['age'].append(a['age'])
-
-            theo_n = []
 
     if min(step['func']) < min_func:
         min_func = min(step['func'])

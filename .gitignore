@@ -1,0 +1,8 @@
+*.pyc
+*.xml
+*.whl
+
+/GUI/*
+/.idea/*
+/__pycache__/*
+

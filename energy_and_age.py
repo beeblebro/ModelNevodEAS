@@ -12,13 +12,13 @@ for experiments in range(10):
     phi = rn.uniform(0, 360)
     x0 = rn.uniform(-50, 50)
     y0 = rn.uniform(-50, 50)
-    energy = 10**6
-    age = 1.3
+    energy = 800000
+    age = 1.2
 
     eas = Eas(theta, phi, x0, y0, energy, age)
 
     # Предполагаемые изначально энергия и возраст
-    start_energy = 10**6
+    start_energy = 10**4
     start_age = 1.3
 
     clusters = [
@@ -35,7 +35,7 @@ for experiments in range(10):
     ]
 
     exp_n = []  # Экспериментальное число частиц
-    theo_n = []  # Теоритическое число частиц
+    # theo_n = []  # Теоритическое число частиц
     sigma_n = []  # Сигма в функционале
 
     average_n = [0, 0, 0]  # средний из восстановленных векторов
