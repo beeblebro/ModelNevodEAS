@@ -1,10 +1,10 @@
 from math import sqrt
 import random as rn
 
-from cluster import Cluster
-from eas import Eas
-from tools import get_theta, functional, make_step
-from amplitude import get_av_amplitude, get_sqr_sigma
+from core.cluster import Cluster
+from core.eas import Eas
+from core.tools import get_theta, functional, make_step
+from core.amplitude import get_av_amplitude, get_sqr_sigma
 
 
 f = open('data/arrival_point/dist_from_average.txt', 'w')

@@ -1,9 +1,9 @@
 from math import sqrt
 import random as rn
 
-from cluster import Cluster
-from eas import Eas
-from tools import get_theta, functional, divide_square
+from core.cluster import Cluster
+from core.eas import Eas
+from core.tools import get_theta, functional, divide_square
 
 
 f = open('data/arrival_point.txt', 'w')

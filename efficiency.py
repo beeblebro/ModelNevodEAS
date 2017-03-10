@@ -1,6 +1,6 @@
-from cluster import Cluster
-from eas import Eas
-from tools import get_theta
+from core.cluster import Cluster
+from core.eas import Eas
+from core.tools import get_theta
 
 import random as rn
 

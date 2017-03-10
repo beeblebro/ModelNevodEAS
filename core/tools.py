@@ -82,7 +82,7 @@ def functional(exp_n, sigma_n, theo_n):
         for j in range(0, len(sigma_n)):
             f += ((exp_n[j] - theo_n[j])**2) / (sigma_n[j]**2)
     else:
-        print("Functional error#0")
+        print("ERROR: Не совпадает число параметров в функционале")
         return False
 
     return f
@@ -115,20 +115,29 @@ def count_theo(clusters, average_n, x, y, energy, age):
     return theo_n
 
 
+def draw_func(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n):
+    """Функция для получения изображения функционала"""
+    with open('func.txt', 'w') as file:
+        for i in range(10000):
+            age = age_0 + i*0.0001
+            theo_n = count_theo(clusters, average_n, x, y, energy_0, age)
+            func = functional(exp_n, sigma_n, theo_n)
+            file.write(str(age) + '\t' + str(func) + '\n')
+
+
 def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
                   min_func):
     """Поиск энергии"""
-    # search = {'func': [], 'energy': []}
+    step1 = 5000
+    step2 = 1000
+    step3 = 500
+
     # Функционал при меньшем значении энергии
     l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   energy_0 - 1000, age_0))
+                                                   energy_0 - 5000, age_0))
     # Фкнкционал при большем значении энергии
     r_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   energy_0 + 1000, age_0))
-
-    step1 = 1000
-    step2 = 500
-    step3 = 100
+                                                   energy_0 + 5000, age_0))
 
     if r_func > l_func:
         # Если истинное значение энергии меньше текущего - будем шагать назад
@@ -137,6 +146,8 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
         step3 = -step3
 
     energy = energy_0 + step1
+    if energy < 10**4:
+        energy -= step1
 
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy, age_0))
@@ -144,6 +155,8 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     while func <= min_func:
         min_func = func
         energy += step1
+        if energy < 10**4 or energy > 10**8:
+            break
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy, age_0))
 
@@ -155,6 +168,8 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     while func <= min_func:
         min_func = func
         energy += step2
+        if energy < 10**4 or energy > 10**8:
+            break
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy, age_0))
 
@@ -164,6 +179,8 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     while func <= min_func:
         min_func = func
         energy += step3
+        if energy < 10**4 or energy > 10**8:
+            break
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy, age_0))
     energy -= step3
@@ -176,15 +193,16 @@ def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
 def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
                min_func):
     """Поиск возраста"""
+    step1 = 0.1
+    step2 = 0.05
+    step3 = 0.01
+
     # Функционал при меньшем возраста возраста
     l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   energy_0, age_0 - 0.05))
+                                                   energy_0, age_0 - 0.1))
     # Фкнкционал при большем значении возраста
     r_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   energy_0, age_0 + 0.05))
-    step1 = 0.05
-    step2 = 0.01
-    step3 = 0.005
+                                                   energy_0, age_0 + 0.1))
 
     if r_func > l_func:
         # Истинное значение энергии меньше текущего - будем шагать назад
@@ -193,13 +211,19 @@ def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
         step3 = -step3
 
     age = age_0 + step1
+    if age >= 2.0 or age <= 0.5:
+        age -= step1
 
     # Шагаем в нужную сторону, пока функционал не станет больше
     func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                  energy_0, age))
     while func <= min_func:
         min_func = func
+
         age += step1
+        if age >= 2.0 or age <= 0.5:
+            # Избегаем math domain error из-за гамма-функций в НКГ
+            break
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy_0, age))
 
@@ -212,6 +236,8 @@ def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     while func <= min_func:
         min_func = func
         age += step2
+        if age >= 2.0 or age <= 0.5:
+            break
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy_0, age))
 
@@ -221,6 +247,8 @@ def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
     while func <= min_func:
         min_func = func
         age += step3
+        if age >= 2.0 or age <= 0.5:
+            break
         func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
                                                      energy_0, age))
 
@@ -255,6 +283,16 @@ def energy_age_search(clusters, average_n, x, y, exp_n, sigma_n, min_func):
                    min_func)
     min_func = d['new_func']
     age = d['new_age']
+
+    e = search_energy(clusters, average_n, x, y, energy, age, exp_n, sigma_n,
+                      min_func)
+    min_func = e['new_func']
+    energy = e['new_energy']
+
+    f = search_age(clusters, average_n, x, y, energy, age, exp_n, sigma_n,
+                   min_func)
+    min_func = f['new_func']
+    age = f['new_age']
 
     return {'func': min_func, 'energy': energy, 'age': age}
 

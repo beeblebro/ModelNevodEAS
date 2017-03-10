@@ -1,19 +1,19 @@
 from math import sqrt
 import random as rn
 
-from cluster import Cluster
-from eas import Eas
-from tools import get_theta, functional, make_step, count_theo
-from amplitude import get_av_amplitude, get_sqr_sigma
+from core.cluster import Cluster
+from core.eas import Eas
+from core.tools import get_theta, functional, make_step, count_theo, draw_func
+from core.amplitude import get_av_amplitude, get_sqr_sigma
 
 f = open('data/energy_and_age/energy_and_age.txt', 'w')
-for experiments in range(10):
+for experiments in range(100):
     theta = get_theta()
     phi = rn.uniform(0, 360)
     x0 = rn.uniform(-50, 50)
     y0 = rn.uniform(-50, 50)
-    energy = 800000
-    age = 1.2
+    energy = 10**5
+    age = 1.3
 
     eas = Eas(theta, phi, x0, y0, energy, age)
 
@@ -53,7 +53,7 @@ for experiments in range(10):
 
     if clust_ok == 0:
         # Не сработал ни один кластер
-        print("GLOBAL FAIL!")
+        print("ERROR: Не сработал ни один кластер")
         continue
 
     # Восстановили вектор прихода ШАЛ
@@ -70,7 +70,7 @@ for experiments in range(10):
                                             fixed_av_amplitude
 
             if cluster.stations[i].sigma_particles < 0:
-                print("Отрицательное число частиц в основном цикле")
+                print("ERROR: Отрицательное число частиц в основном цикле")
 
             #  Считаем сигмы
             cluster.stations[i].sigma_particles = sqrt(
@@ -94,18 +94,19 @@ for experiments in range(10):
     exp_n = tuple(exp_n)
     sigma_n = tuple(sigma_n)
 
+    # draw_func(clusters, eas.n, x0, y0, energy, 1.0, exp_n, sigma_n)
+
     theo_n = count_theo(clusters, average_n, average_x, average_y, start_energy,
                         start_age)
 
     func = functional(exp_n, sigma_n, theo_n)
-    # print(func)
 
     step_1 = make_step(clusters, average_n, 100, 0, 0, start_energy, start_age,
                        exp_n, sigma_n, func)
 
-    if step_1['x'] == 0 and step_1['y'] == 0:
-        step_1['x'] = average_x
-        step_1['y'] = average_y
+    # if step_1['x'] == 0 and step_1['y'] == 0:
+    #     step_1['x'] = average_x
+    #     step_1['y'] = average_y
 
     step_2 = make_step(clusters, average_n, 100 / 3, step_1['x'], step_1['y'],
                        step_1['energy'], step_1['age'], exp_n, sigma_n,
@@ -121,13 +122,7 @@ for experiments in range(10):
     result_energy = step_3['energy']
     result_age = step_3['age']
 
-    # print(x0, y0)
-    # print(average_x, average_y)
-    # print(new_x, new_y)
-
     print(experiments)
-    #  delta = sqrt((x0 - new_x)**2 + (y0 - new_y)**2)
-    #  delta_av = sqrt((x0 - average_x)**2 + (y0 - average_y)**2)
     f.write(str(result_energy) + '\t' + str(result_age))
     f.write('\n')
 

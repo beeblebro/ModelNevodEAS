@@ -1,4 +1,4 @@
-from amplitude import get_amplitude
+from core.amplitude import get_amplitude
 import random as rn
 
 with open('data/one_det.txt', 'w') as f:

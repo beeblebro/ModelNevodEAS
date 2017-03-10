@@ -1,12 +1,12 @@
 from math import pow, sqrt, pi, gamma, acos, cos
 from numpy import array
-from numpy.random import poisson
+from numpy.random import poisson, normal
 from numpy.linalg import det
 import json
 
-from tools import randomize_time, get_distance
-from amplitude import get_amplitude, get_av_amplitude, get_sqr_sigma
-from station import Station
+from core.tools import randomize_time, get_distance
+from core.amplitude import get_amplitude, get_av_amplitude, get_sqr_sigma
+from core.station import Station
 
 
 class Cluster:
@@ -121,7 +121,7 @@ class Cluster:
             return True
         else:
             self.failed = True
-            print("ERROR #0")
+            print("ERROR: Не удалось восстановить направление")
             return False
 
     def nkg(self, radius):
@@ -155,11 +155,18 @@ class Cluster:
         for i in range(4):
             dist = get_distance(self.stations[i].coordinates, self.eas.n,
                                 self.eas.x0, self.eas.y0)
-            # Число частиц в станции
-            self.stations[i].particles = poisson(self.stations[i].area *
-                                                 self.eas.n[2] * self.nkg(dist))
+            # Не радномизированное число частиц в станции
+            temp = self.stations[i].area * self.eas.n[2] * self.nkg(dist)
+
+            if temp <= 25:
+                # Используем Пуассон
+                self.stations[i].particles = poisson(temp)
+            else:
+                # Используем Гаусс
+                self.stations[i].particles = round(normal(temp, sqrt(temp)))
+
             if self.stations[i].particles < 0:
-                print("Отрицательное число частиц в классе кластера")
+                print("ERROR: Отрицательное число частиц в Cluster")
 
             # Станция не сработала
             if self.stations[i].particles == 0:
