@@ -1,14 +1,34 @@
 import random as rn
-from math import exp
+from math import exp, log, e
 from numpy import array, histogram, arange, average, power
 import matplotlib.pyplot as plt
+
+
+def model_value():
+
+    xc = 13.5
+    wid = 4
+    # Из условия нормировки
+    const_a = 1 / (wid * (e - exp(1 - exp(xc/wid))))
+
+    # d = const_a * wid * exp(1 - exp(xc / wid))
+
+    gm = rn.random()
+    # value = xc - wid * log(1 - log((gm + d)/(const_a * wid)))
+    value = xc - wid * log(-log(gm/(const_a * wid * e) + exp(-exp(xc/wid))))
+
+    return value
+
+# test = model_value(1000)
+# plt.hist(test, bins='auto')
+# plt.show()
 
 
 def ampl_func():
     """Случайная амплитуда методом Неймана"""
     y0 = 0
     A = 63
-    xc = 13.5
+    xc = 13
     W = 4
 
     while True:
@@ -36,22 +56,22 @@ sqr_sigma = average_sqr - average_ampl**2  # Квадрат стандартно
 # print(sqr_sigma)
 
 # Строим гистограмму
-# my_hist = histogram(ampl, density=True)
-my_hist = histogram(ampl, bins=arange(80.0), range=(0, 80), density=True)
-w = my_hist[0]  # Здесь веса
-a = my_hist[1]  # Здесь амплитуды
+my_hist = histogram(ampl, bins=1000, range=(0, 80), density=True)
+# my_hist = histogram(ampl, bins=arange(80.0), range=(0, 80), density=True)
+w = array(my_hist[0])  # Здесь веса
+a = array(my_hist[1])  # Здесь амплитуды
 integral = sum(w)
 
 
 def get_av_amplitude():
     """Возвращает среднюю амплитуду"""
-    return average_ampl
-
+    # return average_ampl
+    return 15.80949
 
 def get_sqr_sigma():
     """Возвращает квадрат стандартной ошибки"""
-    return sqr_sigma
-
+    # return sqr_sigma
+    return 26.31064
 
 def get_amplitude():
     """Функция генерирует амплитуду от одиночного мюона в пКл"""
@@ -66,4 +86,3 @@ def get_amplitude():
             correction = delta / w[k]
             return a[k] - correction
     return len(a)
-

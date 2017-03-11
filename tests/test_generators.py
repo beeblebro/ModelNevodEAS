@@ -1,6 +1,7 @@
 from numpy.random import poisson, normal
 from math import sqrt
-from core.amplitude import get_amplitude, get_av_amplitude, ampl_func
+from core.amplitude import get_amplitude, get_av_amplitude, ampl_func, \
+    model_value
 
 
 def test_poisson(lam, num):
@@ -19,9 +20,17 @@ def test_am(t, num):
         for i in range(num):
             res = 0
             for j in range(t):
-                res += get_amplitude()
+                res += model_value()
             res /= get_av_amplitude()
             fa.write(str(res) + "\n")
+
+
+def amplitudes(num):
+
+    with open("am_test.txt", 'w') as fs:
+        for i in range(num):
+            res = model_value()
+            fs.write(str(res) + "\n")
 
 
 def test_both(t, num):
@@ -39,6 +48,8 @@ def test_both(t, num):
             res /= get_av_amplitude()
             f.write(str(res) + "\n")
 
-test_poisson(2, 10**5)
-# test_am(2, 10**5)
-# test_both(2, 10**5)
+# test_poisson(2, 10**6)
+test_am(2, 10**6)
+# test_both(2, 10**6)
+# amplitudes(10**7)
+
