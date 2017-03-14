@@ -3,6 +3,8 @@ from numpy import array, cross, size
 from numpy.linalg import norm
 import random as rn
 
+g_ratio = (1 + 5 ** 0.5) / 2
+
 time_dist_func = []
 tau = 5 / sqrt(3)
 # with open('data/time/dist_func.txt', 'w') as dist_func_file:
@@ -119,18 +121,18 @@ def draw_func(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n):
     """Функция для получения изображения функционала"""
     with open('func.txt', 'w') as file:
         for i in range(10000):
-            age = age_0 + i*0.0001
-            theo_n = count_theo(clusters, average_n, x, y, energy_0, age)
+            energy = energy_0 + 1000 * i
+            theo_n = count_theo(clusters, average_n, x, y, energy, age_0)
             func = functional(exp_n, sigma_n, theo_n)
-            file.write(str(age) + '\t' + str(func) + '\n')
+            file.write(str(energy) + '\t' + str(func) + '\n')
 
 
 def search_energy(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
                   min_func):
     """Поиск энергии"""
     step1 = 5000
-    step2 = 1000
-    step3 = 500
+    step2 = step1 / g_ratio
+    step3 = step2 / g_ratio
 
     # Функционал при меньшем значении энергии
     l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
@@ -194,8 +196,8 @@ def search_age(clusters, average_n, x, y, energy_0, age_0, exp_n, sigma_n,
                min_func):
     """Поиск возраста"""
     step1 = 0.1
-    step2 = 0.05
-    step3 = 0.01
+    step2 = step1 / g_ratio
+    step3 = step2 / g_ratio
 
     # Функционал при меньшем возраста возраста
     l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
@@ -299,6 +301,7 @@ def energy_age_search(clusters, average_n, x, y, exp_n, sigma_n, min_func):
 
 def make_step(clusters, average_n, side, start_x, start_y, start_energy,
               start_age, exp_n, sigma_n, min_func):
+
     step_cen = divide_square(start_x, start_y, side)
     step = {'func': [], 'x': [], 'y': [], 'energy': [], 'age': []}
 

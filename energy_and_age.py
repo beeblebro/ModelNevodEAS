@@ -7,12 +7,12 @@ from core.tools import get_theta, functional, make_step, count_theo, draw_func
 from core.amplitude import get_av_amplitude, get_sqr_sigma
 
 f = open('data/energy_and_age/energy_and_age.txt', 'w')
-for experiments in range(100):
+for experiments in range(1):
     theta = get_theta()
     phi = rn.uniform(0, 360)
     x0 = rn.uniform(-50, 50)
     y0 = rn.uniform(-50, 50)
-    energy = 10**5
+    energy = 1500000
     age = 1.3
 
     eas = Eas(theta, phi, x0, y0, energy, age)
@@ -94,7 +94,7 @@ for experiments in range(100):
     exp_n = tuple(exp_n)
     sigma_n = tuple(sigma_n)
 
-    # draw_func(clusters, eas.n, x0, y0, energy, 1.0, exp_n, sigma_n)
+    draw_func(clusters, eas.n, x0, y0, start_energy, age, exp_n, sigma_n)
 
     theo_n = count_theo(clusters, average_n, average_x, average_y, start_energy,
                         start_age)

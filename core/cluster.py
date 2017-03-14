@@ -193,7 +193,8 @@ class Cluster:
             dist = get_distance(self.stations[i].coordinates, self.eas.n,
                                 self.eas.x0, self.eas.y0)
             # Число частиц в станции
-            self.stations[i].particles = poisson(self.stations[i].area * self.nkg(dist))
+            self.stations[i].particles = poisson(self.stations[i].area *
+                                                 self.nkg(dist))
 
             # Станция не сработала
             if self.stations[i].particles == 0:
