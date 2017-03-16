@@ -5,18 +5,18 @@ import matplotlib.pyplot as plt
 
 def get_amplitude():
     """Получаем случайную амплитуду методом обратной функции"""
-    xc = 13.5
-    wid = 4
-    # Из условия нормировки
-    const_a = 1 / (wid * (e - exp(1 - exp(xc/wid))))
+    enabled = True
+    if enabled:
+        xc = 13.5
+        wid = 4
+        # Из условия нормировки
+        const_a = 1 / (wid * (e - exp(1 - exp(xc/wid))))
 
-    # d = const_a * wid * exp(1 - exp(xc / wid))
-
-    gm = rn.random()
-    # value = xc - wid * log(1 - log((gm + d)/(const_a * wid)))
-    value = xc - wid * log(-log(gm/(const_a * wid * e) + exp(-exp(xc/wid))))
-
-    return value
+        gm = rn.random()
+        value = xc - wid * log(-log(gm/(const_a * wid * e) + exp(-exp(xc/wid))))
+        return value
+    else:
+        return get_av_amplitude()
 
 
 def get_av_amplitude():
@@ -28,4 +28,4 @@ def get_av_amplitude():
 def get_sqr_sigma():
     """Возвращает квадрат стандартной ошибки"""
     # return sqr_sigma
-    return 26.31064
+    return 26.31064**2

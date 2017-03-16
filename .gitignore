@@ -1,10 +1,12 @@
 *.pyc
 *.xml
 *.whl
+*.txt
 
 /GUI/*
 /.idea/*
 /__pycache__/*
 
 /matplotlib-1.5.3-cp35-cp35m-win32.whl
+
 

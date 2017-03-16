@@ -3,22 +3,22 @@ import random as rn
 
 from core.cluster import Cluster
 from core.eas import Eas
-from core.tools import get_theta, functional, make_step, count_theo, draw_func
+from core.tools import get_theta, functional, make_step, count_theo, draw_func_power
 from core.amplitude import get_av_amplitude, get_sqr_sigma
 
 f = open('data/energy_and_age/energy_and_age.txt', 'w')
-for experiments in range(1):
+for experiments in range(100):
     theta = get_theta()
     phi = rn.uniform(0, 360)
     x0 = rn.uniform(-50, 50)
     y0 = rn.uniform(-50, 50)
-    energy = 1500000
+    power = 5 * 10 ** 6
     age = 1.3
 
-    eas = Eas(theta, phi, x0, y0, energy, age)
+    eas = Eas(theta, phi, x0, y0, power, age)
 
-    # Предполагаемые изначально энергия и возраст
-    start_energy = 10**4
+    # Предполагаемые изначально мощность и возраст
+    start_power = 10 ** 4
     start_age = 1.3
 
     clusters = [
@@ -58,8 +58,6 @@ for experiments in range(1):
 
     # Восстановили вектор прихода ШАЛ
     average_n /= clust_ok
-    # Косиунус восстановленного зенитного угла
-    cos_rec_theta = average_n[2]
     # Среднняя амплитуда, скорректрованная на толщину
     fixed_av_amplitude = get_av_amplitude() / average_n[2]
 
@@ -94,14 +92,14 @@ for experiments in range(1):
     exp_n = tuple(exp_n)
     sigma_n = tuple(sigma_n)
 
-    draw_func(clusters, eas.n, x0, y0, start_energy, age, exp_n, sigma_n)
+    # draw_func_power(clusters, eas.n, x0, y0, start_power, age, exp_n, sigma_n)
 
-    theo_n = count_theo(clusters, average_n, average_x, average_y, start_energy,
+    theo_n = count_theo(clusters, average_n, average_x, average_y, start_power,
                         start_age)
 
     func = functional(exp_n, sigma_n, theo_n)
 
-    step_1 = make_step(clusters, average_n, 100, 0, 0, start_energy, start_age,
+    step_1 = make_step(clusters, average_n, 100, 0, 0, start_power, start_age,
                        exp_n, sigma_n, func)
 
     # if step_1['x'] == 0 and step_1['y'] == 0:
@@ -109,21 +107,21 @@ for experiments in range(1):
     #     step_1['y'] = average_y
 
     step_2 = make_step(clusters, average_n, 100 / 3, step_1['x'], step_1['y'],
-                       step_1['energy'], step_1['age'], exp_n, sigma_n,
+                       step_1['power'], step_1['age'], exp_n, sigma_n,
                        step_1['func'])
 
     step_3 = make_step(clusters, average_n, 100 / 9, step_2['x'], step_2['y'],
-                       step_2['energy'], step_2['age'], exp_n, sigma_n,
+                       step_2['power'], step_2['age'], exp_n, sigma_n,
                        step_2['func'])
 
     new_x = step_3['x']
     new_y = step_3['y']
 
-    result_energy = step_3['energy']
+    result_power = step_3['power']
     result_age = step_3['age']
 
     print(experiments)
-    f.write(str(result_energy) + '\t' + str(result_age))
+    f.write(str(result_power) + '\t' + str(result_age))
     f.write('\n')
 
 f.close()

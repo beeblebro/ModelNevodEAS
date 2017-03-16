@@ -127,7 +127,7 @@ class Cluster:
     def nkg(self, radius):
         """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
         # Разбили формулу на четыре множителя
-        m1 = self.eas.energy / pow(self.eas.m_rad, 2)
+        m1 = self.eas.power / pow(self.eas.m_rad, 2)
         m2 = gamma(4.5 - self.eas.age) / (2 * pi * gamma(self.eas.age) *
                                           gamma(4.5 - 2 * self.eas.age))
 
@@ -138,10 +138,10 @@ class Cluster:
         # Возвращает поверхностную плотность на расстоянии radius от оси ливня
         return ro
 
-    def NKG(self, radius, energy, age):
+    def NKG(self, radius, power, age):
         """НКГ, в которой варьируются мощность и возраст"""
         # Разбили формулу на четыре множителя
-        m1 = energy / pow(self.eas.m_rad, 2)
+        m1 = power / pow(self.eas.m_rad, 2)
         m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
         m3 = pow(radius / self.eas.m_rad, age - 2)
         m4 = pow(1 + radius / self.eas.m_rad, age - 4.5)
@@ -152,18 +152,18 @@ class Cluster:
 
     def model_amplitudes(self):
         """Моделирование амплитуд, полученных от станций"""
+        enabled = True  # Включить/выключить генераторы Пуассона и Гаусса
+
         for i in range(4):
             dist = get_distance(self.stations[i].coordinates, self.eas.n,
                                 self.eas.x0, self.eas.y0)
             # Не радномизированное число частиц в станции
             temp = self.stations[i].area * self.eas.n[2] * self.nkg(dist)
 
-            if temp <= 25:
-                # Используем Пуассон
-                self.stations[i].particles = poisson(temp)
+            if enabled:
+                self.stations[i].particles = self.poisson_gauss_gen(temp)
             else:
-                # Используем Гаусс
-                self.stations[i].particles = round(normal(temp, sqrt(temp)))
+                self.stations[i].particles = int(round(temp))
 
             if self.stations[i].particles < 0:
                 print("ERROR: Отрицательное число частиц в Cluster")
@@ -185,6 +185,14 @@ class Cluster:
             return True
         else:
             return False
+
+    @staticmethod
+    def poisson_gauss_gen(n):
+        """Генератор Пуассона и Гаусса"""
+        if n <= 25:
+            return poisson(n)
+        else:
+            return round(normal(n, sqrt(n)))
 
     def model_amplitudes_simple(self):
         """Упрощенная версия моделирования амплитуд.
@@ -213,17 +221,17 @@ class Cluster:
             dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
             station.rec_particles = station.area * self.eas.n[2] * self.nkg(dist)
 
-    def rec_particles(self, average_n, sug_x, sug_y, sug_energy, sug_age):
+    def rec_particles(self, average_n, sug_x, sug_y, sug_power, sug_age):
         """Восстанавливаем число частиц, варьируя возраст и мощность"""
         for station in self.stations:
             dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
             station.rec_particles = station.area * self.eas.n[2] * \
-                                    self.NKG(dist, sug_energy, sug_age)
+                                    self.NKG(dist, sug_power, sug_age)
 
     def record_event(self):
         """Записывает событие в формате json"""
         event = {
-            'energy': 'self.eas.energy',
+            'power': 'self.eas.power',
             'age': self.eas.age,
             'theta': self.eas.theta,
             'phi': self.eas.phi,
