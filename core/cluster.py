@@ -18,12 +18,9 @@ class Cluster:
         self.length = length  # Длина кластреа (вдоль оси Y) [м]
         self.width = width  # Ширина кластера (вдоль оси X) [м]
         self.eas = eas  # ШАЛ, накрывший кластр
-
-        self.failed = False  # Параметр отказа кластера
+        self.respond = True  # Отклик кластера
         self.rec_n = array([0, 0, 0])  # Координаты восстановленного вектора
-        self.time = 0  # Меньшее из времён срабатываний станций [нс]
-
-        self.times = []  # Времена срабатывания
+        self.time = 0  # Время срабатывания кластера [нс]
 
         self.stations = (
             # Создаём станции кластера, задаём им координаты
@@ -44,27 +41,69 @@ class Cluster:
                      self.center[2]]),
         )
 
-    def time_func(self):
-        """Вычисляет времена времена срабатывания станций"""
+    def start(self):
+        """Запуск кластера"""
+        if self.model_amplitudes():
+            self.model_times()
+
+            self.rec_direction()
+            return self.respond
+        else:
+            return False
+
+    def model_amplitudes(self):
+        """Моделирование амплитуд, полученных от станций"""
+        enabled = False  # Включить/выключить генераторы Пуассона и Гаусса
+
+        for st in self.stations:
+            dist = get_distance(st.coord, self.eas.n,
+                                self.eas.x0, self.eas.y0)
+            temp = st.area * self.eas.n[2] * self.nkg(dist, self.eas.power,
+                                                      self.eas.age)
+
+            if enabled:
+                st.particles = self.poisson_gauss_gen(temp)
+            else:
+                st.particles = int(round(temp))
+
+            if st.particles < 0:
+                print("ERROR: Отрицательное число частиц в Cluster")
+
+            if st.particles == 0:
+                st.respond = False
+                # Не сработал и кластер (четырёхкратные совпадения)
+                self.respond = False
+                st.sigma_particles = 1.3
+                st.amplitude = 0.0
+            # Станция сработала
+            else:
+                for j in range(st.particles):
+                    # Вычислили амплитуду в станции
+                    st.amplitude += get_amplitude()
+
+        if self.respond:
+            return True
+        else:
+            return False
+
+    def model_times(self):
+        """Моделирует времена срабатывания станций"""
+        temp = []
         for station in self.stations:
-            station.real_time = (sum(self.eas.n * station.coordinates) +
+            station.real_time = (sum(self.eas.n * station.coord) +
                                  self.eas.D) / self.eas.light_speed
 
             station.rndm_time = randomize_time() + station.real_time
-            self.times.append(station.rndm_time)
+            temp.append(station.rndm_time)
 
-        self.time = min(self.times)
+        self.time = max(temp)
+        min_t = min(temp)
 
         for station in self.stations:
-            station.rndm_time -= self.time
+            station.rndm_time -= min_t
 
-    def least_squares(self):
+    def rec_direction(self):
         """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
-        self.time_func()  # Получили времена срабатывания станций
-
-        # Если хотя бы одно станции не хватило частиц - кластер не сработал
-        if not self.model_amplitudes():
-            return False
 
         sum0 = 0
         sum_x = 0
@@ -81,13 +120,13 @@ class Cluster:
 
             sum0 += 1 / sqr_sigma_t
             sum_t += self.stations[i].rndm_time / sqr_sigma_t
-            sum_x += self.stations[i].coordinates[0] / sqr_sigma_t
-            sum_y += self.stations[i].coordinates[1] / sqr_sigma_t
-            sum_xx += pow(self.stations[i].coordinates[0], 2) / sqr_sigma_t
-            sum_yy += pow(self.stations[i].coordinates[1], 2) / sqr_sigma_t
-            sum_xy += (self.stations[i].coordinates[0] * self.stations[i].coordinates[1]) / sqr_sigma_t
-            sum_tx += (self.stations[i].rndm_time * self.stations[i].coordinates[0]) / sqr_sigma_t
-            sum_ty += (self.stations[i].rndm_time * self.stations[i].coordinates[1]) / sqr_sigma_t
+            sum_x += self.stations[i].coord[0] / sqr_sigma_t
+            sum_y += self.stations[i].coord[1] / sqr_sigma_t
+            sum_xx += pow(self.stations[i].coord[0], 2) / sqr_sigma_t
+            sum_yy += pow(self.stations[i].coord[1], 2) / sqr_sigma_t
+            sum_xy += (self.stations[i].coord[0] * self.stations[i].coord[1]) / sqr_sigma_t
+            sum_tx += (self.stations[i].rndm_time * self.stations[i].coord[0]) / sqr_sigma_t
+            sum_ty += (self.stations[i].rndm_time * self.stations[i].coord[1]) / sqr_sigma_t
 
         sqr_light_speed = pow(self.eas.light_speed, 2)
 
@@ -118,28 +157,23 @@ class Cluster:
             # Если вектор восстановился успешно
             c = sqrt(1 - pow(a, 2) - pow(b, 2))
             self.rec_n = array([a, b, c])
+            self.respond = True
             return True
         else:
-            self.failed = True
+            self.respond = False
             print("ERROR: Не удалось восстановить направление")
             return False
 
-    def nkg(self, radius):
+    def rec_particles(self, average_n, sug_x, sug_y, sug_power, sug_age):
+        """Восстанавливаем число частиц в каждой станции, предполагая мозность
+        координаты прихода ШАЛ, мощность и возраст"""
+        for station in self.stations:
+            dist = get_distance(station.coord, average_n, sug_x, sug_y)
+            station.rec_particles = station.area * self.eas.n[2] * \
+                                    self.nkg(dist, sug_power, sug_age)
+
+    def nkg(self, radius, power, age):
         """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
-        # Разбили формулу на четыре множителя
-        m1 = self.eas.power / pow(self.eas.m_rad, 2)
-        m2 = gamma(4.5 - self.eas.age) / (2 * pi * gamma(self.eas.age) *
-                                          gamma(4.5 - 2 * self.eas.age))
-
-        m3 = pow(radius / self.eas.m_rad, self.eas.age - 2)
-        m4 = pow(1 + radius / self.eas.m_rad, self.eas.age - 4.5)
-
-        ro = m1 * m2 * m3 * m4
-        # Возвращает поверхностную плотность на расстоянии radius от оси ливня
-        return ro
-
-    def NKG(self, radius, power, age):
-        """НКГ, в которой варьируются мощность и возраст"""
         # Разбили формулу на четыре множителя
         m1 = power / pow(self.eas.m_rad, 2)
         m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
@@ -150,42 +184,6 @@ class Cluster:
         # Возвращает поверхностную плотность на расстоянии radius от оси ливня
         return ro
 
-    def model_amplitudes(self):
-        """Моделирование амплитуд, полученных от станций"""
-        enabled = True  # Включить/выключить генераторы Пуассона и Гаусса
-
-        for i in range(4):
-            dist = get_distance(self.stations[i].coordinates, self.eas.n,
-                                self.eas.x0, self.eas.y0)
-            # Не радномизированное число частиц в станции
-            temp = self.stations[i].area * self.eas.n[2] * self.nkg(dist)
-
-            if enabled:
-                self.stations[i].particles = self.poisson_gauss_gen(temp)
-            else:
-                self.stations[i].particles = int(round(temp))
-
-            if self.stations[i].particles < 0:
-                print("ERROR: Отрицательное число частиц в Cluster")
-
-            # Станция не сработала
-            if self.stations[i].particles == 0:
-                self.stations[i].failed = True
-                # Не сработал и кластер (четырёхкратные совпадения)
-                self.failed = True
-                self.stations[i].sigma_particles = 1.3
-                self.stations[i].amplitude = 0.0
-            # Станция сработала
-            else:
-                for j in range(self.stations[i].particles):
-                    # Вычислили амплитуду в станции
-                    self.stations[i].amplitude += get_amplitude()
-
-        if not self.failed:
-            return True
-        else:
-            return False
-
     @staticmethod
     def poisson_gauss_gen(n):
         """Генератор Пуассона и Гаусса"""
@@ -193,51 +191,3 @@ class Cluster:
             return poisson(n)
         else:
             return round(normal(n, sqrt(n)))
-
-    def model_amplitudes_simple(self):
-        """Упрощенная версия моделирования амплитуд.
-        Пригодится, если интересует только факт срабатывания"""
-        for i in range(4):
-            dist = get_distance(self.stations[i].coordinates, self.eas.n,
-                                self.eas.x0, self.eas.y0)
-            # Число частиц в станции
-            self.stations[i].particles = poisson(self.stations[i].area *
-                                                 self.nkg(dist))
-
-            # Станция не сработала
-            if self.stations[i].particles == 0:
-                self.stations[i].failed = True
-                # Не сработал и кластер (четырёхкратные совпадения)
-                self.failed = True
-                return False
-            # Станция сработала
-            else:
-                return True
-
-    def recons_particles(self, sug_x, sug_y, average_n):
-        """Восстанавливаем число частиц в станциях. Получаем точку, в которой
-        предполагаем центр ШАЛ и средний восстановленный вектор ШАЛ"""
-        for station in self.stations:
-            dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
-            station.rec_particles = station.area * self.eas.n[2] * self.nkg(dist)
-
-    def rec_particles(self, average_n, sug_x, sug_y, sug_power, sug_age):
-        """Восстанавливаем число частиц, варьируя возраст и мощность"""
-        for station in self.stations:
-            dist = get_distance(station.coordinates, average_n, sug_x, sug_y)
-            station.rec_particles = station.area * self.eas.n[2] * \
-                                    self.NKG(dist, sug_power, sug_age)
-
-    def record_event(self):
-        """Записывает событие в формате json"""
-        event = {
-            'power': 'self.eas.power',
-            'age': self.eas.age,
-            'theta': self.eas.theta,
-            'phi': self.eas.phi,
-            'real vector': str(self.eas.n),
-        }
-
-        filename = 'data/EAS_events.json'
-        with open(filename, 'w') as f_obj:
-            json.dump(event, f_obj, sort_keys=True, indent=4, separators=(',', ': '))

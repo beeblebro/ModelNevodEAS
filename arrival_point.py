@@ -39,7 +39,7 @@ for experiments in range(1):
 
     clust_ok = 0  # Число сработавших кластеров
     for cluster in clusters:
-        if cluster.least_squares():
+        if cluster.rec_direction():
             clust_ok += 1
             average_n += cluster.rec_n
             for i in range(4):

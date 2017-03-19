@@ -36,7 +36,7 @@ with open('data/angle_parameters/angles.txt', 'w') as angle_file:
 
         clust_ok = 0  # Считаем сработавшие кластеры
         for cluster in clusters:
-            if cluster.least_squares():
+            if cluster.rec_direction():
                 average += cluster.rec_n
                 average_sqr += sum(square(cluster.rec_n))
                 clust_ok += 1

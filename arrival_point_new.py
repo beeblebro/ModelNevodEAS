@@ -41,7 +41,7 @@ for experiments in range(5):
     clust_ok = 0  # Число сработавших кластеров
     # Запускаем кластеры, считаем средний вектор
     for cluster in clusters:
-        if cluster.least_squares():
+        if cluster.rec_direction():
             clust_ok += 1
             average_n += cluster.rec_n
 

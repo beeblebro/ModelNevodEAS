@@ -31,7 +31,7 @@ with open('data/time/delta_time.txt', 'w') as time_file:
 
         clust_ok = 0
         for cluster in clusters:
-            if cluster.least_squares():
+            if cluster.rec_direction():
                 clust_times.append(cluster.time)
                 clust_ok += 1
 
