@@ -8,19 +8,17 @@ from core.tools import get_theta, functional, make_step, count_theo, \
 from core.amplitude import get_av_amplitude, get_sqr_sigma
 
 f = open('data/power_age_func/power_age.txt', 'w')
-for experiments in range(1):
+for experiments in range(5):
     theta = get_theta()
     phi = rn.uniform(0, 360)
-    x0 = rn.uniform(-50, 50)
-    y0 = rn.uniform(-50, 50)
-    power = 5 * 10 ** 6
-    age = 1.4
+    # x0 = rn.uniform(-50, 50)
+    # y0 = rn.uniform(-50, 50)
+    x0 = 25
+    y0 = 25
+    power = 10 ** 6
+    age = 1.45
 
     eas = Eas(theta, phi, x0, y0, power, age)
-
-    # Предполагаемые изначально мощность и возраст
-    start_power = 10 ** 4
-    start_age = 1.3
 
     clusters = [
         Cluster([-28.4, -7.8, -7.0], eas, 13.3, 12.4),
@@ -59,21 +57,17 @@ for experiments in range(1):
 
     # Восстановили вектор прихода ШАЛ
     average_n /= clust_ok
+    average_n = eas.n
     # Среднняя амплитуда, скорректрованная на толщину
     fixed_av_amplitude = get_av_amplitude() / average_n[2]
 
     for cl in clusters:
         for st in cl.stations:
             # Считаем экспериментальные частицы в каждой станции
-            st.particles = st.amplitude / fixed_av_amplitude
+            # st.particles = st.amplitude / fixed_av_amplitude
 
             if st.sigma_particles < 0:
                 print("ERROR: Отрицательное число частиц в основном цикле")
-
-            #  Считаем сигмы
-            st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
-            if st.sigma_particles == 0:
-                st.sigma_particles = 1.3
 
             exp_n.append(st.particles)
             sigma_n.append(st.sigma_particles)
@@ -89,35 +83,35 @@ for experiments in range(1):
     exp_n = tuple(exp_n)
     sigma_n = tuple(sigma_n)
 
-    draw_func_power(clusters, eas.n, x0, y0, start_power, age, exp_n, sigma_n)
-    draw_func_age(clusters, eas.n, x0, y0, power, start_age - 0.1, exp_n, sigma_n)
+    # draw_func_power(clusters, eas.n, x0, y0, start_power, age, exp_n, sigma_n)
+    # draw_func_age(clusters, eas.n, x0, y0, power, start_age - 0.1, exp_n, sigma_n)
 
-    theo_n = count_theo(clusters, average_n, average_x, average_y, start_power,
-                        start_age)
+    _x = 0
+    _y = 0
+    _power = 10 ** 6
+    _age = 1.3
+    theo_n = count_theo(clusters, average_n, _x, _y, _power, _age)
 
-    func = functional(exp_n, sigma_n, theo_n)
+    _func = functional(exp_n, sigma_n, theo_n)
+    _side = 100
 
-    step_1 = make_step(clusters, average_n, 100, average_x, average_y, start_power, start_age,
-                       exp_n, sigma_n, func)
+    for steps in range(3):
+        step = make_step(clusters, average_n, _side, _x, _y, _power, _age, exp_n
+                         , sigma_n, _func)
+        _x = step['x']
+        _y = step['y']
+        _power = step['power']
+        _age = step['age']
+        _func = step['func']
 
-    # if step_1['x'] == 0 and step_1['y'] == 0:
-    #     step_1['x'] = average_x
-    #     step_1['y'] = average_y
+        _side /= 3
 
-    step_2 = make_step(clusters, average_n, 100 / 3, step_1['x'], step_1['y'],
-                       step_1['power'], step_1['age'], exp_n, sigma_n,
-                       step_1['func'])
-
-    step_3 = make_step(clusters, average_n, 100 / 9, step_2['x'], step_2['y'],
-                       step_2['power'], step_2['age'], exp_n, sigma_n,
-                       step_2['func'])
-
-    delta = sqrt((step_3['x'] - x0)**2 + (step_3['y'] - y0)**2)
-    delta_age = step_3['age'] - age
-    delta_power = step_3['power'] - power
+    delta = sqrt((_x - x0)**2 + (_y - y0)**2)
+    delta_age = _age - age
+    delta_power = _power - power
 
     print(experiments)
-    f.write(str(delta) + '\t' + str(delta_power) + '\t' + str(delta_age))
+    f.write(str(_power) + '\t' + str(_age))
     f.write('\n')
 
 f.close()

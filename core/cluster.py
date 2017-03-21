@@ -1,4 +1,4 @@
-from math import pow, sqrt, pi, gamma, acos, cos
+from math import pow, sqrt, pi, gamma, modf, acos, cos
 from numpy import array
 from numpy.random import poisson, normal
 from numpy.linalg import det
@@ -56,30 +56,34 @@ class Cluster:
         enabled = False  # Включить/выключить генераторы Пуассона и Гаусса
 
         for st in self.stations:
-            dist = get_distance(st.coord, self.eas.n,
-                                self.eas.x0, self.eas.y0)
+            dist = get_distance(st.coord, self.eas.n, self.eas.x0, self.eas.y0)
             temp = st.area * self.eas.n[2] * self.nkg(dist, self.eas.power,
                                                       self.eas.age)
 
             if enabled:
                 st.particles = self.poisson_gauss_gen(temp)
             else:
-                st.particles = int(round(temp))
+                st.particles = temp
 
             if st.particles < 0:
                 print("ERROR: Отрицательное число частиц в Cluster")
+                return False
 
             if st.particles == 0:
+                # Станция не сработала
                 st.respond = False
                 # Не сработал и кластер (четырёхкратные совпадения)
                 self.respond = False
                 st.sigma_particles = 1.3
                 st.amplitude = 0.0
-            # Станция сработала
             else:
-                for j in range(st.particles):
+                # Станция сработала
+                for j in range(int(st.particles)):
                     # Вычислили амплитуду в станции
                     st.amplitude += get_amplitude()
+
+                st.amplitude += get_amplitude() * modf(st.particles)[0]
+                st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
 
         if self.respond:
             return True

@@ -101,8 +101,8 @@ def divide_square(center_x, center_y, side):
         # Заполнили первый ряд
         result_y.append(left_corner_y + k * (new_side/2))
         result_x.append(left_corner_x + k * (new_side/2))
-
-    return [result_x, result_y]
+    result = (result_x, result_y)
+    return result
 
 
 def count_theo(clusters, average_n, x, y, energy, age):
@@ -139,116 +139,81 @@ def draw_func_age(clusters, average_n, x, y, power, age, exp_n, sigma_n):
             file.write(str(age) + '\t' + str(func) + '\n')
 
 
-def search_power(clusters, average_n, x, y, power_0, age_0, exp_n, sigma_n,
-                 min_func):
-    """Поиск мощности"""
-    step1 = 5000
-    step2 = 2000
-    step3 = 500
+def rec_power_age(clusters, average_n, x, y, power_0, age_0, exp_n, sigma_n, min_func, flag):
+    """Восстановление мощности или возраста"""
 
-    # Функционал при меньшем значении энергии
+    if flag == "power":
+        # Восстанавливаем мощность
+        step_pow = 5000
+        accuracy_pow = 100
+
+        step_age = 0
+        accuracy_age = -1
+    elif flag == "age":
+        # Восстанавливаем возраст
+        step_age = 0.1
+        accuracy_age = 0.001
+
+        step_pow = 0
+        accuracy_pow = -1
+    else:
+        print("ERROR: Неверный флаг при восстановлении мощност/возраста")
+        return False
+
+    # Функционал при меньшем значении восстанавливаемого параметра
     l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   power_0 - step1, age_0))
-    # Фкнкционал при большем значении энергии
+                                                   power_0 - step_pow, age_0 - step_age))
+    # Функционал при большем значении восстанавливаемого параметра
     r_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   power_0 + step1, age_0))
+                                                   power_0 + step_pow, age_0 + step_age))
 
     if r_func > l_func:
-        # Если истинное значение энергии меньше текущего - будем шагать назад
-        step1, step2, step3 = -step1, - step2, -step3
+        # Нужно уменьшать параметр
+        step_pow, step_age = -step_pow, -step_age
 
-    power = power_0 + step1
-    if power < 10**4:
-        power -= step1
-
-    func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                 power, age_0))
-
-    def mk_step(step):
-        nonlocal power
-        nonlocal func
-        nonlocal min_func
-
-        while func <= min_func:
-            min_func = func
-            power += step
-            if power < 10 ** 4 or power > 10 ** 8:
-                break
-            func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x,
-                                                         y, power, age_0))
-        power -= step
-        func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                     power, age_0))
-
-    mk_step(step1)
-    mk_step(step2)
-    mk_step(step3)
-
-    return {'func': func, 'power': power}
-
-
-def search_age(clusters, average_n, x, y, power_0, age_0, exp_n, sigma_n,
-               min_func):
-    """Поиск возраста"""
-    step1 = 0.1
-    step2 = 0.05
-    step3 = 0.01
-
-    # Функционал при меньшем возраста возраста
-    l_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   power_0, age_0 - step1))
-    # Фкнкционал при большем значении возраста
-    r_func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                   power_0, age_0 + step1))
-
-    if r_func > l_func:
-        # Истинное значение энергии меньше текущего - будем шагать назад
-        step1, step2, step3 = -step1, -step2, -step3
-
-    age = age_0 + step1
+    age = age_0 + step_age
     if age >= 2.0 or age <= 0.5:
-        age -= step1
+        age -= step_age
 
-    func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                 power_0, age))
+    power = power_0 + step_pow
+    if power < 10**4:
+        power -= step_pow
 
-    def mk_step(step):
-        nonlocal age
-        nonlocal func
-        nonlocal min_func
+    func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y, power, age))
+
+    while abs(step_pow) > accuracy_pow and abs(step_age) > accuracy_age:
 
         while func <= min_func:
+
             min_func = func
-            age += step
-            if age >= 2.0 or age <= 0.5:
+
+            power += step_pow
+            age += step_age
+            if (power < 10 ** 4 or power > 10 ** 8) or (age >= 2.0 or age <= 0.5) :
                 break
-            func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x,
-                                                         y, power_0, age))
-        age -= step
-        func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y,
-                                                     power_0, age))
 
-    mk_step(step1)
-    mk_step(step2)
-    mk_step(step3)
+            func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x, y, power, age))
 
-    return {'func': func, 'age': age}
+        step_pow /= -g_ratio
+        step_age /= -g_ratio
+
+    return {'func': func, 'power': power, 'age': age}
 
 
-def energy_age_search(clusters, average_n, x, y, exp_n, sigma_n, min_func):
+def power_age_search(clusters, average_n, x, y, exp_n, sigma_n, min_func):
     """Здесь варьируем мощность и возраст для данной точки"""
-    power = 10**4  # Исходное значение мощности
+    power = 10**6  # Исходное значение мощности
     age = 1.3  # Исходное значение возраста
 
     for i in range(3):
 
-        s_pow = search_power(clusters, average_n, x, y, power, age, exp_n,
-                             sigma_n, min_func)
+        s_pow = rec_power_age(clusters, average_n, x, y, power, age, exp_n, sigma_n,
+                              min_func, 'power')
         min_func = s_pow['func']
         power = s_pow['power']
 
-        s_age = search_age(clusters, average_n, x, y, power, age, exp_n, sigma_n
-                           , min_func)
+        s_age = rec_power_age(clusters, average_n, x, y, power, age, exp_n, sigma_n,
+                              min_func, 'age')
         min_func = s_age['func']
         age = s_age['age']
 
@@ -265,8 +230,8 @@ def make_step(clusters, average_n, side, start_x, start_y, start_power,
         for y in step_cen[1]:
             theo_n = count_theo(clusters, average_n, x, y, start_power,
                                 start_age)
-            a = energy_age_search(clusters, average_n, x, y, exp_n, sigma_n,
-                                  functional(exp_n, sigma_n, theo_n))
+            a = power_age_search(clusters, average_n, x, y, exp_n, sigma_n,
+                                 functional(exp_n, sigma_n, theo_n))
 
             step['x'].append(x)
             step['y'].append(y)
