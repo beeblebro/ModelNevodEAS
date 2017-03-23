@@ -1,3 +1,5 @@
+# Вспомогательные функции
+
 from math import pi, pow, sqrt, exp, cos, sin
 from collections import namedtuple
 from numpy import array, cross, size
@@ -90,36 +92,17 @@ def functional(exp_n, sigma_n, theo_n):
     return f
 
 
-def count_theo(clusters, average_n, x, y, energy, age):
-    """Подсчёт теоретическиого числа частиц для каждой станции"""
-    theo_n = []
-
-    for cluster in clusters:
-        cluster.rec_particles(average_n, x, y, energy, age)
-        for station in cluster.stations:
-            theo_n.append(station.rec_particles)
-
-    return theo_n
-
-
-def draw_func_power(clusters, average_n, x, y, power, age, exp_n, sigma_n):
-    """Функция для получения зависимость функционала от мощности"""
-    with open('data/power_age_func/func_power.txt', 'w') as file:
-        for i in range(10000):
-            power += 1000
-            func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x,
-                                                         y, power, age))
-
-            file.write(str(power) + '\t' + str(func) + '\n')
-
-
-def draw_func_age(clusters, average_n, x, y, power, age, exp_n, sigma_n):
-    """Функция для получения зависимость функционала от мощности"""
-    with open('data/power_age_func/func_age.txt', 'w') as file:
-        for i in range(10000):
-            age += 0.00007
-            func = functional(exp_n, sigma_n, count_theo(clusters, average_n, x,
-                                                         y, power, age))
-
-            file.write(str(age) + '\t' + str(func) + '\n')
+def divide_square(center_x, center_y, side):
+    """Делит квадрат на девять равных и возвращает их центры"""
+    result_x = []
+    result_y = []
+    new_side = side / 3
+    left_corner_x = center_x - side / 2
+    left_corner_y = center_y - side / 2
+    for k in [1, 3, 5]:
+        # Заполнили первый ряд
+        result_y.append(left_corner_y + k * (new_side/2))
+        result_x.append(left_corner_x + k * (new_side/2))
+    result = {'x': result_x, 'y': result_y}
+    return result
 

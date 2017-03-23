@@ -1,6 +1,6 @@
 from core.cluster import Cluster
 from core.eas import Eas
-from core.tools import get_theta
+from core.utils import get_theta
 from numpy import array
 
 import random as rn

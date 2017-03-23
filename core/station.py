@@ -17,3 +17,13 @@ class Station:
         self.amplitude = 0  # Амплитуда сигнала от станции [пКл]
         self.sigma_particles = 0  # Ошибка для функционала по частицам
         self.dyn_range = 800  # Динамический диапазон
+
+    def reset(self):
+        """Возвращаемся к исходному состоянию"""
+        self.respond = True
+        self.particles = 0
+        self.real_time = 0
+        self.rndm_time = 0
+        self.rec_particles = 0
+        self.amplitude = 0
+        self.sigma_particles = 0

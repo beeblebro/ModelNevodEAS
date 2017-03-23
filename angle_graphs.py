@@ -1,6 +1,6 @@
 from core.cluster import Cluster
 from core.eas import Eas
-from core.tools import get_theta
+from core.utils import get_theta
 
 from math import sqrt, pi, acos
 from numpy import array, square

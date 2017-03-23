@@ -3,7 +3,7 @@ import random as rn
 
 from core.cluster import Cluster
 from core.eas import Eas
-from core.tools import get_theta, functional, make_step
+from core.utils import get_theta, functional, make_step
 from core.amplitude import get_av_amplitude, get_sqr_sigma
 
 

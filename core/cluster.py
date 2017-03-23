@@ -2,22 +2,21 @@ from math import pow, sqrt, pi, gamma, modf, acos, cos
 from numpy import array
 from numpy.random import poisson, normal
 from numpy.linalg import det
-import json
 
-from core.tools import randomize_time, get_distance
-from core.amplitude import get_amplitude, get_av_amplitude, get_sqr_sigma
 from core.station import Station
+from core.amplitude import *
+from core.utils import *
 
 
 class Cluster:
     """Класс для представления кластера установки НЕВОД-ШАЛ"""
 
-    def __init__(self, center, eas, length=15, width=15):
+    def __init__(self, center, length=15, width=15):
         """Создаём кластер, передаём ему координаты и накрывший его ШАЛ"""
+        self.eas = None  # ШАЛ, падающий на кластер
         self.center = array(center)  # Координаты кластера [м]
         self.length = length  # Длина кластреа (вдоль оси Y) [м]
         self.width = width  # Ширина кластера (вдоль оси X) [м]
-        self.eas = eas  # ШАЛ, накрывший кластр
         self.respond = True  # Отклик кластера
         self.rec_n = array([0, 0, 0])  # Координаты восстановленного вектора
         self.time = 0  # Время срабатывания кластера [нс]
@@ -41,6 +40,10 @@ class Cluster:
                      self.center[2]]),
         )
 
+    def get_eas(self, eas):
+        """Получаем ШАЛ"""
+        self.eas = eas
+
     def start(self):
         """Запуск кластера"""
         if self.model_amplitudes():
@@ -51,9 +54,17 @@ class Cluster:
         else:
             return False
 
+    def reset(self):
+        """Возвращаем кластер к исходному состоянию"""
+        self.eas = None
+        self.time = 0
+        self.rec_n = array([0, 0, 0])
+        for station in self.stations:
+            station.reset()
+
     def model_amplitudes(self):
         """Моделирование амплитуд, полученных от станций"""
-        enabled = False  # Включить/выключить генераторы Пуассона и Гаусса
+        enabled = True  # Включить/выключить генераторы Пуассона и Гаусса
 
         for st in self.stations:
             dist = get_distance(st.coord, self.eas.n, self.eas.x0, self.eas.y0)
@@ -79,9 +90,9 @@ class Cluster:
             else:
                 # Станция сработала
                 for j in range(int(st.particles)):
-                    # Вычислили амплитуду в станции
+                    # Вычисляем амплитуду в станции
                     st.amplitude += get_amplitude()
-
+                # Добавим десятичную частьё
                 st.amplitude += get_amplitude() * modf(st.particles)[0]
                 st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
 
@@ -173,8 +184,9 @@ class Cluster:
         координаты прихода ШАЛ, мощность и возраст"""
         for station in self.stations:
             dist = get_distance(station.coord, average_n, sug_x, sug_y)
-            station.rec_particles = station.area * self.eas.n[2] * \
-                                    self.nkg(dist, sug_power, sug_age)
+            station.rec_particles = station.area * self.eas.n[2] * self.nkg(dist,
+                                                                            sug_power,
+                                                                            sug_age)
 
     def nkg(self, radius, power, age):
         """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
