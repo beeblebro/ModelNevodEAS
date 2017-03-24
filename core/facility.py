@@ -1,5 +1,8 @@
+from scipy.optimize import fmin
+from numpy import array
+
 from core.cluster import Cluster
-from core.utils import functional, divide_square, g_ratio
+from core.utils import divide_square, g_ratio
 from core.amplitude import *
 
 
@@ -21,19 +24,25 @@ class Facility:
             Cluster([50, 58, -8]),
         ]
 
-        self.average_n = [0, 0, 0]  # Средний из восстановленных векторов
-        self.rec_power = None
-        self.rec_age = None
-        self.rec_x = None
+        self.grid_steps = 4  # Число шагов по сетке
+        self.power_age_steps = 4  # Число шагов поиска мощности и возраста
+
+        self.average_n = None  # Средний из восстановленных векторов
+        self.rec_power = None  # Восстановленная мощность
+        self.rec_age = None  # Восстановленный возраст
+        self.rec_x = None  # Восстановленне координаты прихода ШАЛ
         self.rec_y = None
-        self.clust_ok = 0  # Число сработавших кластеров
+        self.clust_ok = None  # Число сработавших кластеров
         self.exp_n = []  # Экспериментальное число частиц
         self.sigma_n = []  # Сигма в функционале
         self.average_x0 = None  # Средневзвешенные x0 и y0
         self.average_y0 = None
 
+        self.real_n = None  # Настоящий вектор ШАЛ
+
     def get_eas(self, eas):
         """Все кластеры получают ШАЛ"""
+        self.real_n = eas.n
         for cluster in self.clusters:
             cluster.get_eas(eas)
 
@@ -41,10 +50,10 @@ class Facility:
         """Сбрасываем все кластеры"""
         for cluster in self.clusters:
             cluster.reset()
-        self.average_n = [0, 0, 0]
-        self.clust_ok = 0
+        self.average_n = None
         self.exp_n = []
         self.sigma_n = []
+        self.clust_ok = None
         self.average_x0 = None
         self.average_y0 = None
         self.rec_age = None
@@ -52,6 +61,8 @@ class Facility:
 
     def start(self):
         """Запуск всех кластеров"""
+        self.clust_ok = 0
+        self.average_n = [0, 0, 0]
         for cluster in self.clusters:
             if cluster.start():
                 self.average_n += cluster.rec_n
@@ -86,14 +97,14 @@ class Facility:
         """Восстанавливаем точку прихода, мощность и возраст"""
         _x = 0
         _y = 0
-        _power = 10 ** 6
+        _power = 10 ** 4
         _age = 1.3
-        theo_n = self._count_theo(_x, _y, _power, _age)
+        theo_n = list(self._count_theo(_x, _y, _power, _age))
 
-        _func = functional(self.exp_n, self.sigma_n, theo_n)
+        _func = self.functional(theo_n)
         _side = 100
 
-        for steps in range(3):
+        for steps in range(self.grid_steps):
             step = self._make_step(_side, _x, _y, _power, _age, _func)
             _x = step['x']
             _y = step['y']
@@ -108,6 +119,15 @@ class Facility:
         self.rec_power = _power
         self.rec_age = _age
 
+    def new_rec_params(self):
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 6
+        _age = 1.4
+
+        result = fmin(self.func, array([_x, _y, _power, _age]))
+        print(result)
+
     def _make_step(self, side, start_x, start_y, start_power, start_age, min_func):
         """Делаем шаг по сетке"""
         step_cen = divide_square(start_x, start_y, side)
@@ -115,9 +135,8 @@ class Facility:
 
         for x in step_cen['x']:
             for y in step_cen['y']:
-                theo_n = self._count_theo(x, y, start_power, start_age)
-                a = self._power_age_search(x, y, functional(self. exp_n, self.sigma_n,
-                                                            theo_n))
+                theo_n = list(self._count_theo(x, y, start_power, start_age))
+                a = self._power_age_search(x, y, self.functional(theo_n))
 
                 step['x'].append(x)
                 step['y'].append(y)
@@ -147,7 +166,7 @@ class Facility:
         power = 10 ** 6  # Исходное значение мощности
         age = 1.3  # Исходное значение возраста
 
-        for i in range(3):
+        for i in range(self.power_age_steps):
             s_pow = self._rec_power_age(x, y, power, age, min_func, 'power')
             min_func = s_pow['func']
             power = s_pow['power']
@@ -169,8 +188,8 @@ class Facility:
             accuracy_age = -1
         elif flag == "age":
             # Восстанавливаем возраст
-            step_age = 0.1
-            accuracy_age = 0.001
+            step_age = 0.5
+            accuracy_age = 0.0001
             step_pow = 0
             accuracy_pow = -1
         else:
@@ -178,14 +197,12 @@ class Facility:
             return False
 
         # Функционал при меньшем значении восстанавливаемого параметра
-        l_func = functional(self.exp_n, self.sigma_n, self._count_theo(x, y,
-                                                            power_0 - step_pow,
-                                                            age_0 - step_age))
+        l_func = self.functional(
+                       list(self._count_theo(x, y, power_0 - step_pow, age_0 - step_age)))
 
         # Функционал при большем значении восстанавливаемого параметра
-        r_func = functional(self.exp_n, self.sigma_n, self._count_theo(x, y,
-                                                            power_0 + step_pow,
-                                                            age_0 + step_age))
+        r_func = self.functional(
+                       list(self._count_theo(x, y, power_0 + step_pow, age_0 + step_age)))
 
         if r_func > l_func:
             # Нужно уменьшать параметр
@@ -199,37 +216,69 @@ class Facility:
         if power < 10 ** 4:
             power -= step_pow
 
-        func = functional(self.exp_n, self.sigma_n, self._count_theo(x, y, power, age))
+        func = self.functional(list(self._count_theo(x, y, power, age)))
 
         while abs(step_pow) > accuracy_pow and abs(step_age) > accuracy_age:
 
-            while func <= min_func:
+            while func < min_func:
 
                 min_func = func
 
                 power += step_pow
                 age += step_age
-                if (power < 10 ** 4 or power > 10 ** 8) or (age >= 2.0 or age <= 0.5):
+
+                if power < 10 ** 4 or power > 10 ** 8:
+                    power -= step_pow
                     break
 
-                func = functional(self.exp_n, self.sigma_n, self._count_theo(x, y,
-                                                                             power, age))
+                if age >= 2.0 or age <= 0.5:
+                    age -= step_age
+                    break
 
+                func = self.functional(list(self._count_theo(x, y, power, age)))
+
+            # Разворачиваемся и уменьшаем шаг
             step_pow /= -g_ratio
             step_age /= -g_ratio
+            # Шагнули обратно с меньшим шагом
+            power += step_pow
+            age += step_age
+
+            func = self.functional(list(self._count_theo(x, y, power, age)))
 
         return {'func': func, 'power': power, 'age': age}
 
     def _count_theo(self, x, y, power, age):
-        """Подсчёт теоретическиого числа частиц для каждой станции"""
-        theo_n = []
+        """Подсчёт теоретическиого числа частиц для каждой станции, возвращает
+        генератор"""
 
         for cluster in self.clusters:
             cluster.rec_particles(self.average_n, x, y, power, age)
             for station in cluster.stations:
-                theo_n.append(station.rec_particles)
+                yield station.rec_particles
 
-        return theo_n
+    def functional(self, theo_n):
+        """Считает функционал"""
+        f = 0
+
+        if len(self.sigma_n) == len(theo_n) == len(self.exp_n):
+            for n_e, n_t, sigma in zip(self.exp_n, theo_n, self.sigma_n):
+                f += ((n_e - n_t) ** 2) / (sigma ** 2)
+        else:
+            print("ERROR: Не совпадает число параметров в функционале")
+            return False
+        return f
+
+    def func(self, params):
+        """Функционал одной функцией от параметров ШАЛ"""
+        x = params[0]
+        y = params[1]
+        power = params[2]
+        age = params[3]
+
+        theo_n = list(self._count_theo(x, y, power, age))
+
+        return self.functional(theo_n)
 
     def draw_func_power(self, x, y, age):
         """Функция для получения зависимость функционала от мощности в данной точке при
@@ -238,8 +287,7 @@ class Facility:
         with open('data/power_age_func/func_power.txt', 'w') as file:
             for i in range(10000):
                 power += 1000
-                func = functional(self.exp_n, self.sigma_n, self._count_theo(x, y,
-                                                                             power,  age))
+                func = self.functional(list(self._count_theo(x, y, power, age)))
 
                 file.write(str(power) + '\t' + str(func) + '\n')
 
@@ -250,7 +298,6 @@ class Facility:
         with open('data/power_age_func/func_age.txt', 'w') as file:
             for i in range(10000):
                 age += 0.00007
-                func = functional(self.exp_n, self.sigma_n, self._count_theo(x, y, power,
-                                                                         age))
+                func = self.functional(list(self._count_theo(x, y, power, age)))
 
                 file.write(str(age) + '\t' + str(func) + '\n')

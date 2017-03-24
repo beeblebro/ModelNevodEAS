@@ -79,19 +79,6 @@ def get_power():
     return ((10**6) / (1 - gm))**(2/3)
 
 
-def functional(exp_n, sigma_n, theo_n):
-    """Считает функционал"""
-    f = 0
-
-    if len(sigma_n) == len(theo_n) == len(exp_n):
-        for n_e, n_t, sigma in zip(exp_n, theo_n, sigma_n):
-            f += ((n_e - n_t)**2) / (sigma**2)
-    else:
-        print("ERROR: Не совпадает число параметров в функционале")
-        return False
-    return f
-
-
 def divide_square(center_x, center_y, side):
     """Делит квадрат на девять равных и возвращает их центры"""
     result_x = []

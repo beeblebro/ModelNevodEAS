@@ -17,9 +17,9 @@ class Cluster:
         self.center = array(center)  # Координаты кластера [м]
         self.length = length  # Длина кластреа (вдоль оси Y) [м]
         self.width = width  # Ширина кластера (вдоль оси X) [м]
-        self.respond = True  # Отклик кластера
-        self.rec_n = array([0, 0, 0])  # Координаты восстановленного вектора
-        self.time = 0  # Время срабатывания кластера [нс]
+        self.respond = None  # Отклик кластера
+        self.rec_n = None  # Координаты восстановленного вектора
+        self.time = None  # Время срабатывания кластера [нс]
 
         self.stations = (
             # Создаём станции кластера, задаём им координаты
@@ -57,21 +57,20 @@ class Cluster:
     def reset(self):
         """Возвращаем кластер к исходному состоянию"""
         self.eas = None
-        self.time = 0
-        self.rec_n = array([0, 0, 0])
+        self.time = None
+        self.rec_n = None
         for station in self.stations:
             station.reset()
 
     def model_amplitudes(self):
         """Моделирование амплитуд, полученных от станций"""
-        enabled = True  # Включить/выключить генераторы Пуассона и Гаусса
+        _enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
 
         for st in self.stations:
             dist = get_distance(st.coord, self.eas.n, self.eas.x0, self.eas.y0)
-            temp = st.area * self.eas.n[2] * self.nkg(dist, self.eas.power,
-                                                      self.eas.age)
+            temp = st.area * self.eas.n[2] * self.nkg(dist, self.eas.power, self.eas.age)
 
-            if enabled:
+            if _enabled_gen:
                 st.particles = self.poisson_gauss_gen(temp)
             else:
                 st.particles = temp
@@ -86,15 +85,21 @@ class Cluster:
                 # Не сработал и кластер (четырёхкратные совпадения)
                 self.respond = False
                 st.sigma_particles = 1.3
-                st.amplitude = 0.0
+                st.amplitude = 0
             else:
                 # Станция сработала
+                st.respond = True
+                st.amplitude = 0
                 for j in range(int(st.particles)):
                     # Вычисляем амплитуду в станции
                     st.amplitude += get_amplitude()
-                # Добавим десятичную частьё
+                # Добавим десятичную часть
                 st.amplitude += get_amplitude() * modf(st.particles)[0]
                 st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
+
+        if self.respond is None:
+            # Если ни одна станция не сменила отклик кластера на False => кластер сработал
+            self.respond = True
 
         if self.respond:
             return True
