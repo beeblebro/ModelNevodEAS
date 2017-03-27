@@ -1,4 +1,4 @@
-from scipy.optimize import fmin
+from scipy.optimize import fmin_bfgs
 from numpy import array
 
 from core.cluster import Cluster
@@ -80,7 +80,9 @@ class Facility:
         self.average_y0 = 0
         for cl in self.clusters:
             for st in cl.stations:
-                st.particles = st.amplitude / fixed_av_ampl
+
+                # Получаем экспериментальное число частиц в станции
+                # st.particles = st.amplitude / fixed_av_ampl
 
                 self.exp_n.append(st.particles)
                 self.sigma_n.append(st.sigma_particles)
@@ -119,14 +121,20 @@ class Facility:
         self.rec_power = _power
         self.rec_age = _age
 
-    def new_rec_params(self):
+    def new_rec_params_bfgs(self):
+
         _x = self.average_x0
         _y = self.average_y0
-        _power = 10 ** 6
-        _age = 1.4
+        _power = 10 ** 4
+        _age = 1.3
 
-        result = fmin(self.func, array([_x, _y, _power, _age]))
-        print(result)
+        result = list(fmin_bfgs(self.func, array([_x, _y, _power, _age]),
+                                gtol=0.0000001))
+
+        self.rec_x = result[0]
+        self.rec_y = result[1]
+        self.rec_power = result[2]
+        self.rec_age = result[3]
 
     def _make_step(self, side, start_x, start_y, start_power, start_age, min_func):
         """Делаем шаг по сетке"""
@@ -253,7 +261,7 @@ class Facility:
         генератор"""
 
         for cluster in self.clusters:
-            cluster.rec_particles(self.average_n, x, y, power, age)
+            cluster.rec_particles(self.real_n, x, y, power, age)
             for station in cluster.stations:
                 yield station.rec_particles
 
@@ -270,7 +278,7 @@ class Facility:
         return f
 
     def func(self, params):
-        """Функционал одной функцией от параметров ШАЛ"""
+        """Функционал одной функцией от параметров ШАЛ в виде ndarray"""
         x = params[0]
         y = params[1]
         power = params[2]
@@ -297,7 +305,7 @@ class Facility:
         age = 1.2
         with open('data/power_age_func/func_age.txt', 'w') as file:
             for i in range(10000):
-                age += 0.00007
+                age += 0.001
                 func = self.functional(list(self._count_theo(x, y, power, age)))
 
                 file.write(str(age) + '\t' + str(func) + '\n')

@@ -1,7 +1,6 @@
 # Вспомогательные функции
 
 from math import pi, pow, sqrt, exp, cos, sin
-from collections import namedtuple
 from numpy import array, cross, size
 from numpy.linalg import norm
 import random as rn
@@ -10,7 +9,6 @@ g_ratio = (1 + 5 ** 0.5) / 2  # Золотое сечение
 
 time_dist_func = []
 tau = 5 / sqrt(3)
-# with open('data/time/dist_func.txt', 'w') as dist_func_file:
 
 for i in range(300):
     # Заполняем функцию распределения
@@ -20,8 +18,6 @@ for i in range(300):
                             tau + 2 * pow(tau, 2))) * (1 / (2 * pow(tau, 3)))
 
     time_dist_func.append(new_element)
-
-# dist_func_file.write(str(t) + '\t' + str(new_element) + '\n')
 
 
 def randomize_time():

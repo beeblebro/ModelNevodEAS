@@ -10,15 +10,15 @@ f = open('data/power_age_func/power_age.txt', 'w')
 NevodEAS = Facility()
 
 
-for experiments in range(1):
+for experiments in range(5):
     theta = get_theta()
     phi = rn.uniform(0, 360)
     # x0 = rn.uniform(-50, 50)
     # y0 = rn.uniform(-50, 50)
     x0 = 30
     y0 = -50
-    power = 10 ** 6
-    age = 1.3
+    power = 5 * 10 ** 6
+    age = 1.5
     # Создали ШАЛ
     eas = Eas(theta, phi, x0, y0, power, age)
 
@@ -27,14 +27,13 @@ for experiments in range(1):
     # Запускаем установку
     if not NevodEAS.start():
         # Пропустим итерацию цикла, если ничего не сработало
+        print("ERROR: Не сработал ни один кластер")
         continue
-    # Восстанавливаем точку прихода, мощность и возраст
-    NevodEAS.new_rec_params()
 
-    # draw_func_power(NevodEAS.clusters, eas.n, eas.x0, eas.y0, start_power, eas,age,
-    # NevodEAS.exp_n, NevodEAS.sigma_n)
-    # draw_func_age(NevodEAS.clusters, eas.n, eas.x0, eas.y0, start_power, eas,age,
-    # NevodEAS.exp_n, NevodEAS.sigma_n)
+    # Восстанавливаем точку прихода, мощность и возраст
+    NevodEAS.new_rec_params_bfgs()
+
+    # NevodEAS.draw_func_age(x0, y0, power)
 
     print(experiments)
     f.write(str(NevodEAS.rec_power) + '\t' + str(NevodEAS.rec_age))

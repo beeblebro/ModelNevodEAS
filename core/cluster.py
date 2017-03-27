@@ -64,20 +64,16 @@ class Cluster:
 
     def model_amplitudes(self):
         """Моделирование амплитуд, полученных от станций"""
-        _enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
+        _enabled_gen = False  # Включить/выключить генераторы Пуассона и Гаусса
 
         for st in self.stations:
             dist = get_distance(st.coord, self.eas.n, self.eas.x0, self.eas.y0)
             temp = st.area * self.eas.n[2] * self.nkg(dist, self.eas.power, self.eas.age)
 
             if _enabled_gen:
-                st.particles = self.poisson_gauss_gen(temp)
+                st.particles = self._poisson_gauss_gen(temp)
             else:
                 st.particles = temp
-
-            if st.particles < 0:
-                print("ERROR: Отрицательное число частиц в Cluster")
-                return False
 
             if st.particles == 0:
                 # Станция не сработала
@@ -94,7 +90,7 @@ class Cluster:
                     # Вычисляем амплитуду в станции
                     st.amplitude += get_amplitude()
                 # Добавим десятичную часть
-                st.amplitude += get_amplitude() * modf(st.particles)[0]
+                st.amplitude += (get_amplitude() * modf(st.particles)[0])
                 st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
 
         if self.respond is None:
@@ -184,14 +180,13 @@ class Cluster:
             print("ERROR: Не удалось восстановить направление")
             return False
 
-    def rec_particles(self, average_n, sug_x, sug_y, sug_power, sug_age):
-        """Восстанавливаем число частиц в каждой станции, предполагая мозность
-        координаты прихода ШАЛ, мощность и возраст"""
+    def rec_particles(self, n, x, y, power, age):
+        """Восстанавливаем число частиц в каждой станции, предполагая мощность
+        координаты прихода ШАЛ, мощность и возраст. А вычисление расстояние до станций 
+        от оси ШАЛ просиходит с помощью восстанолвенного вектора"""
         for station in self.stations:
-            dist = get_distance(station.coord, average_n, sug_x, sug_y)
-            station.rec_particles = station.area * self.eas.n[2] * self.nkg(dist,
-                                                                            sug_power,
-                                                                            sug_age)
+            dist = get_distance(station.coord, n, x, y)
+            station.rec_particles = station.area * n[2] * self.nkg(dist, power, age)
 
     def nkg(self, radius, power, age):
         """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
@@ -206,7 +201,7 @@ class Cluster:
         return ro
 
     @staticmethod
-    def poisson_gauss_gen(n):
+    def _poisson_gauss_gen(n):
         """Генератор Пуассона и Гаусса"""
         if n <= 25:
             return poisson(n)
