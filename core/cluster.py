@@ -5,7 +5,7 @@ from numpy.linalg import det
 
 from core.station import Station
 from core.amplitude import *
-from core.utils import *
+from core.utils import get_distance, randomize_time
 
 
 class Cluster:
@@ -56,6 +56,7 @@ class Cluster:
 
     def reset(self):
         """Возвращаем кластер к исходному состоянию"""
+        self.respond = None
         self.eas = None
         self.time = None
         self.rec_n = None
@@ -64,7 +65,7 @@ class Cluster:
 
     def model_amplitudes(self):
         """Моделирование амплитуд, полученных от станций"""
-        _enabled_gen = False  # Включить/выключить генераторы Пуассона и Гаусса
+        _enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
 
         for st in self.stations:
             dist = get_distance(st.coord, self.eas.n, self.eas.x0, self.eas.y0)
@@ -94,7 +95,8 @@ class Cluster:
                 st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
 
         if self.respond is None:
-            # Если ни одна станция не сменила отклик кластера на False => кластер сработал
+            # Если ни одна станция не сменила отклик кластера на False
+            # => кластер сработал
             self.respond = True
 
         if self.respond:

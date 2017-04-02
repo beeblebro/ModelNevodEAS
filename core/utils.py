@@ -3,6 +3,7 @@
 from math import pi, pow, sqrt, exp, cos, sin
 from numpy import array, cross, size
 from numpy.linalg import norm
+from numpy.random import normal
 import random as rn
 
 g_ratio = (1 + 5 ** 0.5) / 2  # Золотое сечение
@@ -33,7 +34,7 @@ def randomize_time():
 def psn(x):
     """Генератор распределения Пуассона"""
     p = exp(-x)
-    imax = int(x + 5.0*sqrt(x))
+    imax = int(x + 5.0 * sqrt(x))
     if imax < 5:
         imax = 5
     gm = rn.random()
@@ -41,7 +42,7 @@ def psn(x):
     if gm < sump:
         return 0
     for j in range(1, imax + 1):
-        p = p * x/j
+        p *= (x/j)
         sump += p
         if gm < sump:
             return i
@@ -75,6 +76,25 @@ def get_power():
     return ((10**6) / (1 - gm))**(2/3)
 
 
+def get_age(power, theta):
+    """Генератор значений возраста"""
+    theta *= (pi/180)  # Перевели тета в радианы
+
+    n_1 = 10**9
+    s_1 = 0.7
+
+    n_2 = 10**5
+    s_2 = 1.6
+
+    b = (s_2 - (n_2 * s_1)/n_1) / (1 - n_2/n_1)
+    k = (s_1 - b)/n_1
+
+    age = k * power + b
+    age = normal(age + 0.3 * sin(theta), 0.1)
+
+    return age
+
+
 def divide_square(center_x, center_y, side):
     """Делит квадрат на девять равных и возвращает их центры"""
     result_x = []
@@ -88,4 +108,3 @@ def divide_square(center_x, center_y, side):
         result_x.append(left_corner_x + k * (new_side/2))
     result = {'x': result_x, 'y': result_y}
     return result
-

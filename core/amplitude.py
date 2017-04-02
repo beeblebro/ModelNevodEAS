@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 def get_amplitude():
     """Получаем случайную амплитуду методом обратной функции"""
-    _enabled_gen = False  # Вкл/Выкл генератор
+    _enabled_gen = True  # Вкл/Выкл генератор
     if _enabled_gen:
         xc = 13.5
         wid = 4

@@ -7,7 +7,7 @@ class Eas:
     """Класс для представления широкого атмосферного ливня"""
     light_speed = 0.299792458
 
-    def __init__(self, theta, phi, x0=0, y0=0, power=10 ** 6, age=1.3):
+    def __init__(self, theta, phi, x0=0, y0=0, power=10**6, age=1.3):
         self.theta = theta * (pi/180)  # Зенитный угол в радианах
         self.phi = phi * (pi/180)  # Азимутальный в радианах
         self.x0 = x0  # Координаты (x,y) точки

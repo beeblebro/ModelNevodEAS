@@ -2,23 +2,20 @@ import random as rn
 
 from core import Facility
 from core import Eas
-from core.utils import get_theta
+from core.utils import get_theta, get_power, get_age
 
 f = open('data/power_age_func/power_age.txt', 'w')
 
 # Создали устаовку
 NevodEAS = Facility()
 
-
-for experiments in range(5):
-    theta = get_theta()
-    phi = rn.uniform(0, 360)
-    # x0 = rn.uniform(-50, 50)
-    # y0 = rn.uniform(-50, 50)
-    x0 = 30
-    y0 = -50
-    power = 5 * 10 ** 6
-    age = 1.5
+for tries in range(20):
+    theta = get_theta()  # Тета
+    phi = rn.uniform(0, 360)  # и фи в градусах
+    x0 = rn.uniform(-50, 50)
+    y0 = rn.uniform(-50, 50)
+    power = get_power()
+    age = get_age(power, theta)
     # Создали ШАЛ
     eas = Eas(theta, phi, x0, y0, power, age)
 
@@ -27,17 +24,20 @@ for experiments in range(5):
     # Запускаем установку
     if not NevodEAS.start():
         # Пропустим итерацию цикла, если ничего не сработало
-        print("ERROR: Не сработал ни один кластер")
+        NevodEAS.reset()
         continue
 
     # Восстанавливаем точку прихода, мощность и возраст
-    NevodEAS.new_rec_params_bfgs()
+    if not NevodEAS.new_rec_params_bfgs():
+        print("ERROR: Не удалось восстановить параметры ШАЛ")
+        NevodEAS.reset()
+        continue
 
-    # NevodEAS.draw_func_age(x0, y0, power)
-
-    print(experiments)
-    f.write(str(NevodEAS.rec_power) + '\t' + str(NevodEAS.rec_age))
-    f.write('\n')
+    f.write(str(x0) + '\t' + str(NevodEAS.rec_x) + '\t'
+            + str(y0) + '\t' + str(NevodEAS.rec_y) + '\t'
+            + str(power) + '\t' + str(NevodEAS.rec_power) + '\t'
+            + str(age) + '\t' + str(NevodEAS.rec_age) + '\n')
     NevodEAS.reset()
+
 f.close()
 
