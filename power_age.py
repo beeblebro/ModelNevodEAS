@@ -37,6 +37,7 @@ for tries in range(20):
             + str(y0) + '\t' + str(NevodEAS.rec_y) + '\t'
             + str(power) + '\t' + str(NevodEAS.rec_power) + '\t'
             + str(age) + '\t' + str(NevodEAS.rec_age) + '\n')
+
     NevodEAS.reset()
 
 f.close()
