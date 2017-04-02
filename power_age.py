@@ -4,12 +4,12 @@ from core import Facility
 from core import Eas
 from core.utils import get_theta, get_power, get_age
 
-f = open('data/power_age_func/power_age.txt', 'w')
+f = open('data/power_age.txt', 'w')
 
 # Создали устаовку
 NevodEAS = Facility()
 
-for tries in range(20):
+for tries in range(10000):
     theta = get_theta()  # Тета
     phi = rn.uniform(0, 360)  # и фи в градусах
     x0 = rn.uniform(-50, 50)
