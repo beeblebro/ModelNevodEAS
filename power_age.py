@@ -9,7 +9,7 @@ f = open('data/power_age.txt', 'w')
 # Создали устаовку
 NevodEAS = Facility()
 
-for tries in range(10000):
+for tries in range(100):
     theta = get_theta()  # Тета
     phi = rn.uniform(0, 360)  # и фи в градусах
     x0 = rn.uniform(-50, 50)
@@ -28,11 +28,14 @@ for tries in range(10000):
         continue
 
     # Восстанавливаем точку прихода, мощность и возраст
-    if not NevodEAS.new_rec_params_bfgs():
-        print("ERROR: Не удалось восстановить параметры ШАЛ")
-        NevodEAS.reset()
-        continue
+    # if not NevodEAS.new_rec_params_bfgs():
+    #     print("ERROR: Не удалось восстановить параметры ШАЛ")
+    #     NevodEAS.reset()
+    #     continue
 
+    NevodEAS.rec_params()
+
+    print(tries)
     f.write(str(x0) + '\t' + str(NevodEAS.rec_x) + '\t'
             + str(y0) + '\t' + str(NevodEAS.rec_y) + '\t'
             + str(power) + '\t' + str(NevodEAS.rec_power) + '\t'

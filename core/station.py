@@ -12,9 +12,9 @@ class Station:
         self.side = 1.6  # Длина стороны станции [м]
         self.area = 2.56  # Площадь станции [м2]
         self.respond = None  # Отклик станции
-        self.particles = None  # Экспериментальное число частиц, попавших в стнцию
+        self.particles = None  # Экспериментальное число частиц
         self.real_time = None  # Истинное время срабатывания станции [нс]
-        self.rndm_time = None  # Рандомизированное время срабатывания станции [нс]
+        self.rndm_time = None  # Рандомизированное время станции [нс]
         self.rec_particles = None  # Восстановленное число частиц
         self.sigma_t = 5  # Ошибка определения времени [нс]
         self.amplitude = None  # Амплитуда сигнала от станции [пКл]

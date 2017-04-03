@@ -72,13 +72,21 @@ def get_theta():
 
 def get_power():
     """Получаем мощность методом обратных функций"""
+    beta = 2.5  # Показатель степени
+    a = 10**5  # Нижняя граница жнергетического диапазона
     gm = rn.random()
-    return ((10**6) / (1 - gm))**(2/3)
+
+    power = a * pow((1 - gm), 1/(1 - beta))
+
+    if power < 10**5 or power > 10**9:
+        return get_power()
+
+    return power
 
 
 def get_age(power, theta):
     """Генератор значений возраста"""
-    theta *= (pi/180)  # Перевели тета в радианы
+    theta_rad = theta * (pi/180)  # Перевели тета в радианы
 
     n_1 = 10**9
     s_1 = 0.7
@@ -90,7 +98,10 @@ def get_age(power, theta):
     k = (s_1 - b)/n_1
 
     age = k * power + b
-    age = normal(age + 0.3 * sin(theta), 0.1)
+    age = normal(age + 0.3 * sin(theta_rad), 0.1)
+
+    if age < 0.7 or age > 2.0:
+        return get_age(power, theta)
 
     return age
 
@@ -103,8 +114,8 @@ def divide_square(center_x, center_y, side):
     left_corner_x = center_x - side / 2
     left_corner_y = center_y - side / 2
     for k in [1, 3, 5]:
-        # Заполнили первый ряд
         result_y.append(left_corner_y + k * (new_side/2))
         result_x.append(left_corner_x + k * (new_side/2))
     result = {'x': result_x, 'y': result_y}
     return result
+

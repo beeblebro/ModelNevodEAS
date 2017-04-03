@@ -99,11 +99,57 @@ class Facility:
 
         _x = self.average_x0
         _y = self.average_y0
-        _power = 10 ** 4
+        _power = 10 ** 5
         _age = 1.3
+        _args = array([_x, _y, _power, _age])
 
-        res = minimize(self.func, array([_x, _y, _power, _age]), method='BFGS',
-                       options={'maxiter': 1e6, 'gtol': 1e-7, 'disp': True})
+        res = minimize(self.func, _args, method='BFGS',
+                       options={'maxiter': None, 'disp': False, 'gtol': 1e-09})
+
+        if res.success:
+            self.rec_x = res.x[0]
+            self.rec_y = res.x[1]
+            self.rec_power = res.x[2]
+            self.rec_age = res.x[3]
+            return True
+        else:
+            return False
+
+    def new_rec_params_lbfgsb(self):
+
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 5
+        _age = 1.3
+        _args = array([_x, _y, _power, _age])
+        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
+
+        res = minimize(self.func, _args, method='L-BFGS-B', bounds=_bnds,
+                       options={'maxiter': 1e8, 'disp': False, 'gtol': 1e-09,
+                                'maxls': 100, 'ftol': 1e-11, 'maxcor': 20,
+                                'maxfun': 20000, 'eps': 1e-10})
+
+        if res.success:
+            self.rec_x = res.x[0]
+            self.rec_y = res.x[1]
+            self.rec_power = res.x[2]
+            self.rec_age = res.x[3]
+            return True
+        else:
+            return False
+
+    def new_rec_params_slsqp(self):
+
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 5
+        _age = 1.3
+        _args = array([_x, _y, _power, _age])
+        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
+
+        res = minimize(self.func, _args, method='SLSQP', bounds=_bnds,
+                       options={'maxiter': 1e7, 'disp': False, 'ftol': 1e-10,
+                                'eps': 1e-10})
 
         if res.success:
             self.rec_x = res.x[0]
@@ -118,7 +164,7 @@ class Facility:
         """Восстанавливаем точку прихода, мощность и возраст"""
         _x = 0
         _y = 0
-        _power = 10 ** 4
+        _power = 10 ** 5
         _age = 1.3
         theo_n = list(self.count_theo(_x, _y, _power, _age))
 
@@ -175,7 +221,7 @@ class Facility:
 
     def power_age_search(self, x, y, min_func):
         """Здесь варьируем мощность и возраст для данной точки"""
-        power = 10 ** 6  # Исходное значение мощности
+        power = 10 ** 5  # Исходное значение мощности
         age = 1.3  # Исходное значение возраста
 
         for i in range(self.power_age_steps):
@@ -221,11 +267,11 @@ class Facility:
             step_pow, step_age = -step_pow, -step_age
 
         age = age_0 + step_age
-        if age >= 2.0 or age <= 0.5:
+        if age >= 2.0 or age <= 0.7:
             age -= step_age
 
         power = power_0 + step_pow
-        if power < 10 ** 4:
+        if power < 10 ** 5:
             power -= step_pow
 
         func = self.functional(list(self.count_theo(x, y, power, age)))
@@ -239,11 +285,11 @@ class Facility:
                 power += step_pow
                 age += step_age
 
-                if power < 10 ** 4 or power > 10 ** 8:
+                if power < 10 ** 5 or power > 10 ** 8:
                     power -= step_pow
                     break
 
-                if age >= 2.0 or age <= 0.5:
+                if age >= 2.0 or age <= 0.7:
                     age -= step_age
                     break
 
@@ -265,7 +311,7 @@ class Facility:
         генератор"""
 
         for cluster in self.clusters:
-            cluster.rec_particles(self.real_n, x, y, power, age)
+            cluster.rec_particles(self.average_n, x, y, power, age)
             for station in cluster.stations:
                 yield station.rec_particles
 
