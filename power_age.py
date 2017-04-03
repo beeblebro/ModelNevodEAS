@@ -28,12 +28,10 @@ for tries in range(100):
         continue
 
     # Восстанавливаем точку прихода, мощность и возраст
-    # if not NevodEAS.new_rec_params_bfgs():
-    #     print("ERROR: Не удалось восстановить параметры ШАЛ")
-    #     NevodEAS.reset()
-    #     continue
-
-    NevodEAS.rec_params()
+    if not NevodEAS.new_rec_params_bfgs():
+        print("ERROR: Не удалось восстановить параметры ШАЛ")
+        NevodEAS.reset()
+        continue
 
     print(tries)
     f.write(str(x0) + '\t' + str(NevodEAS.rec_x) + '\t'
