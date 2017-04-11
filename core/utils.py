@@ -1,12 +1,13 @@
 # Вспомогательные функции
 
-from math import pi, pow, sqrt, exp, cos, sin
+from math import pi, pow, sqrt, exp, cos, sin, gamma
 from numpy import array, cross, size
 from numpy.linalg import norm
-from numpy.random import normal
+from numpy.random import normal, poisson
 import random as rn
 
 g_ratio = (1 + 5 ** 0.5) / 2  # Золотое сечение
+m_radius = 71  # Радиус Мольера [м]
 
 time_dist_func = []
 tau = 5 / sqrt(3)
@@ -119,3 +120,23 @@ def divide_square(center_x, center_y, side):
     result = {'x': result_x, 'y': result_y}
     return result
 
+
+def nkg(radius, power, age):
+    """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
+    # Разбили формулу на четыре множителя
+    m1 = power / pow(m_radius, 2)
+    m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
+    m3 = pow(radius / m_radius, age - 2)
+    m4 = pow(1 + radius / m_radius, age - 4.5)
+
+    ro = m1 * m2 * m3 * m4
+    # Возвращает поверхностную плотность на расстоянии radius от оси ливня
+    return ro
+
+
+def poisson_gauss_gen(n):
+    """Генератор Пуассона и Гаусса"""
+    if n <= 25:
+        return poisson(n)
+    else:
+        return round(normal(n, sqrt(n)))

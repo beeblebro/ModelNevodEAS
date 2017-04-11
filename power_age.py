@@ -4,12 +4,12 @@ from core import Facility
 from core import Eas
 from core.utils import get_theta, get_power, get_age
 
-f = open('data/power_age.txt', 'w')
+f = open('data/coord.txt', 'w')
 
 # Создали устаовку
 NevodEAS = Facility()
 
-for tries in range(100):
+for tries in range(1):
     theta = get_theta()  # Тета
     phi = rn.uniform(0, 360)  # и фи в градусах
     x0 = rn.uniform(-50, 50)
@@ -28,16 +28,21 @@ for tries in range(100):
         continue
 
     # Восстанавливаем точку прихода, мощность и возраст
-    if not NevodEAS.new_rec_params_bfgs():
-        print("ERROR: Не удалось восстановить параметры ШАЛ")
-        NevodEAS.reset()
-        continue
+    # if not NevodEAS.new_rec_params_bfgs():
+    #     print("ERROR: Не удалось восстановить параметры ШАЛ")
+    #     NevodEAS.reset()
+    #     continue
+
+    for cl in NevodEAS.clusters:
+        f.write(str(cl.center[0]) + '\n')
+        # for st in cl.stations:
+        #     f.write(str(st.coord) + '\n')
 
     print(tries)
-    f.write(str(x0) + '\t' + str(NevodEAS.rec_x) + '\t'
-            + str(y0) + '\t' + str(NevodEAS.rec_y) + '\t'
-            + str(power) + '\t' + str(NevodEAS.rec_power) + '\t'
-            + str(age) + '\t' + str(NevodEAS.rec_age) + '\n')
+    # f.write(str(x0) + '\t' + str(NevodEAS.rec_x) + '\t'
+    #         + str(y0) + '\t' + str(NevodEAS.rec_y) + '\t'
+    #         + str(power) + '\t' + str(NevodEAS.rec_power) + '\t'
+    #         + str(age) + '\t' + str(NevodEAS.rec_age) + '\n')
 
     NevodEAS.reset()
 

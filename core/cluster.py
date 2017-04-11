@@ -1,4 +1,4 @@
-from math import pow, sqrt, pi, gamma, modf, acos, cos
+from math import pow, sqrt, pi, gamma, modf
 from numpy import array
 from numpy.random import poisson, normal
 from numpy.linalg import det
@@ -22,20 +22,24 @@ class Cluster:
         self.time = None  # Время срабатывания кластера [нс]
 
         self.stations = (
-            # Создаём станции кластера, задаём им координаты
-            Station([self.center[0] + self.width / 2,
+            # Создаём станции кластера, задаём им координаты и номера
+            Station(1,
+                    [self.center[0] + self.width / 2,
                      self.center[1] - self.length / 2,
                      self.center[2]]),
 
-            Station([self.center[0] - self.width / 2,
+            Station(2,
+                    [self.center[0] - self.width / 2,
                      self.center[1] - self.length / 2,
                      self.center[2]]),
 
-            Station([self.center[0] - self.width / 2,
+            Station(3,
+                    [self.center[0] - self.width / 2,
                      self.center[1] + self.length / 2,
                      self.center[2]]),
 
-            Station([self.center[0] + self.width / 2,
+            Station(4,
+                    [self.center[0] + self.width / 2,
                      self.center[1] + self.length / 2,
                      self.center[2]]),
         )
@@ -44,15 +48,49 @@ class Cluster:
         """Получаем ШАЛ"""
         self.eas = eas
 
+    # def start(self):
+    #     """Запуск кластера"""
+    #     if self.model_ampl_new():
+    #         self.model_times_new()
+    #
+    #         self.rec_direction()
+    #         return self.respond
+    #     else:
+    #         return False
+
     def start(self):
         """Запуск кластера"""
-        if self.model_amplitudes():
-            self.model_times()
+        # Счётчик сработавших станций
+        st_ok = 0
+        for st in self.stations:
+            # Запускаем станции
+            if st.start(self.eas):
+                st_ok += 1
 
-            self.rec_direction()
-            return self.respond
+        if st_ok != 0:
+            # Если что-то сработало
+            temp = []
+
+            # Изменим времена срабатывания станций на относительные
+            for st in self.stations:
+                if st.respond:
+                    temp.append(st.rndm_time)
+            min_t = min(temp)
+            for st in self.stations:
+                if st.respond:
+                    st.rndm_time -= min_t
+
+        if st_ok == 4:
+            # Можем попытаться восстановить направление
+            if self.rec_direction():
+                self.respond = True
+            else:
+                self.respond = False
         else:
-            return False
+            # Не можем восстановить направление
+            self.respond = False
+
+        return self.respond
 
     def reset(self):
         """Возвращаем кластер к исходному состоянию"""

@@ -2,6 +2,9 @@
 *.xml
 *.whl
 *.txt
+*.json
+*.jsonl
+*.bin
 
 /GUI/*
 /.idea/*
