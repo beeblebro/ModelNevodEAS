@@ -8,6 +8,10 @@ from core import get_age, get_theta, get_power
 
 fbin = open('modelEAS_flat_10k_11.04.bin', 'wb')
 fjson = open('modelEAS_flat_10k_11.04.jsonl', 'w')
+
+# fbin = open('test.bin', 'wb')
+# fjson = open('test.jsonl', 'w')
+
 fp = open('distr.txt', 'w')
 
 NevodEAS = Facility()

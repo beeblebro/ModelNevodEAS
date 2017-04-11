@@ -34,9 +34,11 @@ for tries in range(1):
     #     continue
 
     for cl in NevodEAS.clusters:
-        f.write(str(cl.center[0]) + '\n')
-        # for st in cl.stations:
-        #     f.write(str(st.coord) + '\n')
+        # f.write('{' + str(cl.center[0]) + ', ' + str(cl.center[1]) + ', ' + str(
+        #     cl.center[2]) + '},\n')
+        for st in cl.stations:
+            f.write('{' + str(st.coord[0]) + ', ' + str(st.coord[1]) + ', ' + str(
+                st.coord[2]) + '},\n')
 
     print(tries)
     # f.write(str(x0) + '\t' + str(NevodEAS.rec_x) + '\t'
