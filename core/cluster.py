@@ -222,7 +222,7 @@ class Cluster:
 
     def rec_particles(self, n, x, y, power, age):
         """Восстанавливаем число частиц в каждой станции, предполагая мощность
-        координаты прихода ШАЛ, мощность и возраст. А вычисление расстояние до станций 
+        координаты прихода ШАЛ, мощность и возраст. А вычисление расстояния до станций 
         от оси ШАЛ просиходит с помощью восстанолвенного вектора"""
         for station in self.stations:
             dist = get_distance(station.coord, n, x, y)
@@ -233,8 +233,8 @@ class Cluster:
         # Разбили формулу на четыре множителя
         m1 = power / pow(self.eas.m_rad, 2)
         m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
-        m3 = pow(radius / self.eas.m_rad, age - 2)
-        m4 = pow(1 + radius / self.eas.m_rad, age - 4.5)
+        m3 = pow((radius + 1e-10) / self.eas.m_rad, age - 2)
+        m4 = pow(1 + (radius + 1e-10) / self.eas.m_rad, age - 4.5)
 
         ro = m1 * m2 * m3 * m4
         # Возвращает поверхностную плотность на расстоянии radius от оси ливня

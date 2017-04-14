@@ -1,5 +1,6 @@
-from scipy.optimize import minimize
+from scipy.optimize import minimize, brute, basinhopping, differential_evolution
 from numpy import array
+from math import sqrt, acos, atan, pi
 
 from core.cluster import Cluster
 from core.utils import divide_square, g_ratio
@@ -9,32 +10,33 @@ from core.amplitude import *
 class Facility:
     """Класс для представления установки НЕВОД-ШАЛ"""
 
-    def __init__(self):
+    def __init__(self, geometry='nevod'):
 
-        # self.clusters = [
-        #     Cluster([-28.4, -7.8, -7.0], 13.3, 12.4),
-        #     Cluster([-28.4, 23.8, -7.0], 13.3, 12.4),
-        #     Cluster([0, 0, 0], 25.1, 13.5),
-        #     Cluster([33.3, 7.8, -14.5]),
-        #     Cluster([35, 46, -14.5]),
-        #     Cluster([-2, -47, -14.5]),
-        #     Cluster([-18, 62, -14.5]),
-        #     Cluster([50, -2, -2]),
-        #     Cluster([50, 26, -2]),
-        #     Cluster([50, 58, -8]),
-        # ]
-
-        self.clusters = [
-            Cluster([-40.0, 40.0, 0.0], 20.0, 20.0),
-            Cluster([0.0, 40.0, 0.0], 20.0, 20.0),
-            Cluster([40.0, 40.0, 0.0], 20.0, 20.0),
-            Cluster([-40.0, 0.0, 0.0], 20.0, 20.0),
-            Cluster([0.0, 0.0, 0.0], 20.0, 20.0),
-            Cluster([40.0, 0.0, 0.0], 20.0, 20.0),
-            Cluster([-40.0, -40.0, 0.0], 20.0, 20.0),
-            Cluster([0.0, -40.0, 0.0], 20.0, 20.0),
-            Cluster([40.0, -40.0, 0.0], 20.0, 20.0),
-        ]
+        if geometry == 'nevod':
+            self.clusters = [
+                Cluster([-28.4, -7.8, -7.0], 13.3, 12.4),
+                Cluster([-28.4, 23.8, -7.0], 13.3, 12.4),
+                Cluster([0, 0, 0], 25.1, 13.5),
+                Cluster([33.3, 7.8, -14.5]),
+                Cluster([35, 46, -14.5]),
+                Cluster([-2, -47, -14.5]),
+                Cluster([-18, 62, -14.5]),
+                Cluster([50, -2, -2]),
+                Cluster([50, 26, -2]),
+                Cluster([50, 58, -8]),
+            ]
+        elif geometry == 'flat':
+            self.clusters = [
+                Cluster([-40.0, 40.0, 0.0], 20.0, 20.0),
+                Cluster([0.0, 40.0, 0.0], 20.0, 20.0),
+                Cluster([40.0, 40.0, 0.0], 20.0, 20.0),
+                Cluster([-40.0, 0.0, 0.0], 20.0, 20.0),
+                Cluster([0.0, 0.0, 0.0], 20.0, 20.0),
+                Cluster([40.0, 0.0, 0.0], 20.0, 20.0),
+                Cluster([-40.0, -40.0, 0.0], 20.0, 20.0),
+                Cluster([0.0, -40.0, 0.0], 20.0, 20.0),
+                Cluster([40.0, -40.0, 0.0], 20.0, 20.0),
+            ]
 
         self.grid_steps = 4  # Число шагов по сетке
         self.power_age_steps = 4  # Число шагов поиска мощности и возраста
@@ -44,6 +46,8 @@ class Facility:
         self.rec_age = None  # Восстановленный возраст
         self.rec_x = None  # Восстановленне координаты прихода ШАЛ
         self.rec_y = None
+        self.rec_theta = None
+        self.rec_phi = None
         self.clust_ok = None  # Число сработавших кластеров
         self.exp_n = []  # Экспериментальное число частиц
         self.sigma_n = []  # Сигма в функционале
@@ -70,6 +74,8 @@ class Facility:
         self.average_y0 = None
         self.rec_age = None
         self.rec_power = None
+        self.rec_theta = None
+        self.rec_phi = None
 
     def start(self):
         """Запуск всех кластеров"""
@@ -102,12 +108,107 @@ class Facility:
                 particles_sum += st.particles
                 self.average_x0 += st.coord[0] * st.particles
                 self.average_y0 += st.coord[1] * st.particles
-
         self.average_x0 /= particles_sum
         self.average_y0 /= particles_sum
         return True
 
-    def new_rec_params_bfgs(self):
+    def rec_direction(self):
+        """Восстановление направления ШАЛ"""
+        cl_ok = 0
+        self.average_n = [0, 0, 0]
+        for cl in self.clusters:
+            if cl.respond:
+                if cl.rec_direction():
+                    self.average_n += cl.rec_n
+                    # self.average_n[0] += cl.rec_n[0]
+                    # self.average_n[1] += cl.rec_n[1]
+                    # self.average_n[2] += cl.rec_n[2]
+                    cl_ok += 1
+
+        self.average_n = array(self.average_n)
+        if cl_ok == 0:
+            print("ERROR: Не воссталовилось направление")
+            return False
+        else:
+            self.average_n /= cl_ok
+            # self.average_n[0] /= cl_ok
+            # self.average_n[1] /= cl_ok
+            # self.average_n[2] /= cl_ok
+            self.rec_theta = acos(self.average_n[2]) * (180/pi)
+            self.rec_phi = atan(self.average_n[1]/self.average_n[0]) * (180/pi)
+            return True
+
+    def rec_particles(self):
+        """Восстановление числа частиц в станциях"""
+        if self.average_n is None or self.average_n[2] == 0:
+            print("ERROR: Не восстановлились частицы")
+            return False
+
+        fixed_av_ampl = get_av_amplitude() / self.average_n[2]
+
+        particles_sum = 0
+        self.average_x0 = 0
+        self.average_y0 = 0
+        for cl in self.clusters:
+            for st in cl.stations:
+                # Получаем экспериментальное число частиц в станции
+                st.particles = st.amplitude / fixed_av_ampl
+
+                self.exp_n.append(st.particles)
+                st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
+                if st.sigma_particles == 0:
+                    st.sigma_particles = 1.3
+                self.sigma_n.append(st.sigma_particles)
+
+                particles_sum += st.particles
+                self.average_x0 += st.coord[0] * st.particles
+                self.average_y0 += st.coord[1] * st.particles
+
+        # self.exp_n = tuple(self.exp_n)
+        # self.sigma_n = tuple(self.sigma_n)
+        self.average_x0 /= particles_sum
+        self.average_y0 /= particles_sum
+
+        return True
+
+    def rec_params_bashinhopping(self):
+
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 5
+        _age = 1.3
+        _args = array([_x, _y, _power, _age])
+        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
+
+        res = basinhopping(self.func, _args, disp=True, niter=1000)
+
+        self.rec_x = res.x[0]
+        self.rec_y = res.x[1]
+        self.rec_power = res.x[2]
+        self.rec_age = res.x[3]
+        return True
+
+    def rec_params_diff_evo(self):
+
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 5
+        _age = 1.3
+        _args = array([_x, _y, _power, _age])
+        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
+
+        res = differential_evolution(self.func, _bnds, maxiter=1000, disp=False)
+
+        if res.success:
+            self.rec_x = res.x[0]
+            self.rec_y = res.x[1]
+            self.rec_power = res.x[2]
+            self.rec_age = res.x[3]
+            return True
+        else:
+            return False
+
+    def rec_params_bfgs(self):
 
         _x = self.average_x0
         _y = self.average_y0
@@ -127,7 +228,7 @@ class Facility:
         else:
             return False
 
-    def new_rec_params_lbfgsb(self):
+    def rec_params_lbfgsb(self):
 
         _x = self.average_x0
         _y = self.average_y0
@@ -150,7 +251,7 @@ class Facility:
         else:
             return False
 
-    def new_rec_params_slsqp(self):
+    def rec_params_slsqp(self):
 
         _x = self.average_x0
         _y = self.average_y0
@@ -160,8 +261,7 @@ class Facility:
         _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
 
         res = minimize(self.func, _args, method='SLSQP', bounds=_bnds,
-                       options={'maxiter': 1e7, 'disp': False, 'ftol': 1e-10,
-                                'eps': 1e-10})
+                       options={'maxiter': 1e7, 'disp': False, 'ftol': 1e-10})
 
         if res.success:
             self.rec_x = res.x[0]
@@ -321,7 +421,6 @@ class Facility:
     def count_theo(self, x, y, power, age):
         """Подсчёт теоретическиого числа частиц для каждой станции, возвращает
         генератор"""
-
         for cluster in self.clusters:
             cluster.rec_particles(self.average_n, x, y, power, age)
             for station in cluster.stations:
