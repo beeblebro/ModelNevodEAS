@@ -5,12 +5,12 @@ from core import Facility
 from core import Eas
 from core.utils import get_theta, get_power, get_age
 
-f_data = open('model_10k_flat.jsonl', 'r')
-f_dump = open('restore_flat.txt', 'w')
-f_dump_params = open('params_flat.txt', 'w')
+f_data = open('model_10k.jsonl', 'r')
+f_dump = open('restore.txt', 'w')
+f_dump_params = open('params.txt', 'w')
 
 # Создали устаовку
-NevodEAS = Facility(geometry='flat')
+NevodEAS = Facility(geometry='nevod')
 
 for line in f_data:
     event = json.loads(line)
@@ -55,7 +55,7 @@ for line in f_data:
     NevodEAS.rec_direction()
     NevodEAS.rec_particles()
 
-    if NevodEAS.rec_params_diff_evo():
+    if NevodEAS.rec_params_slsqp():
         f_dump.write(str(NevodEAS.rec_theta) + '\t' + str(NevodEAS.rec_phi) + '\t' +
                      str(NevodEAS.rec_x) + '\t' + str(NevodEAS.rec_y) + '\t' +
                      str(NevodEAS.rec_power) + '\t' + str(NevodEAS.rec_age) + '\n')
@@ -63,7 +63,7 @@ for line in f_data:
     NevodEAS.reset()
 
     print(num)
-    if num == 99:
+    if num == 9999:
         break
 
 f_data.close()
