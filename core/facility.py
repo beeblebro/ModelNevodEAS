@@ -1,6 +1,6 @@
 from scipy.optimize import minimize, brute, basinhopping, differential_evolution
 from numpy import array
-from math import sqrt, acos, atan, pi
+from math import sqrt, acos, atan, pi, sin
 
 from core.cluster import Cluster
 from core.utils import divide_square, g_ratio
@@ -131,11 +131,13 @@ class Facility:
             return False
         else:
             self.average_n /= cl_ok
-            # self.average_n[0] /= cl_ok
-            # self.average_n[1] /= cl_ok
-            # self.average_n[2] /= cl_ok
-            self.rec_theta = acos(self.average_n[2]) * (180/pi)
-            self.rec_phi = atan(self.average_n[1]/self.average_n[0]) * (180/pi)
+
+            self.rec_theta = acos(self.average_n[2])
+            # self.rec_phi = atan(self.average_n[1]/self.average_n[0]) * (180/pi)
+            self.rec_phi = acos(self.average_n[0] / sin(self.rec_theta))
+            # Переведём в градусы
+            self.rec_theta *= (180 / pi)
+            self.rec_phi *= (180 / pi)
             return True
 
     def rec_particles(self):
@@ -171,7 +173,27 @@ class Facility:
 
         return True
 
-    def rec_params_bashinhopping(self):
+    def rec_params_nelder_mead(self):
+
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 5
+        _age = 1.3
+        _args = array([_x, _y, _power, _age])
+
+        res = minimize(self.func, _args, method='Nelder-Mead',
+                       options={'maxiter': 1e6, 'maxfev': 1e6, 'disp': True})
+
+        if res.success:
+            self.rec_x = res.x[0]
+            self.rec_y = res.x[1]
+            self.rec_power = res.x[2]
+            self.rec_age = res.x[3]
+            return True
+        else:
+            return False
+
+    def rec_params_powell(self):
 
         _x = self.average_x0
         _y = self.average_y0
@@ -180,7 +202,32 @@ class Facility:
         _args = array([_x, _y, _power, _age])
         _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
 
-        res = basinhopping(self.func, _args, disp=True, niter=1000)
+        res = minimize(self.func, _args, method='Powell',
+                       options={'maxiter': 1e6, 'maxfev': 1e6, 'disp': True,
+                                'xtol': 1e-06, 'ftol': 1e-06})
+
+        if res.success:
+            self.rec_x = res.x[0]
+            self.rec_y = res.x[1]
+            self.rec_power = res.x[2]
+            self.rec_age = res.x[3]
+            # self.check_bnds(_bnds)
+            return True
+        else:
+            return False
+
+    def rec_params_bashinhopping(self):
+
+        _x = self.average_x0
+        _y = self.average_y0
+        _power = 10 ** 5
+        _age = 1.3
+        _args = array([_x, _y, _power, _age])
+        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
+        minimizer_kwargs = {"method": "Powell"}
+
+        res = basinhopping(self.func, _args, disp=True, niter=200,
+                           minimizer_kwargs=minimizer_kwargs)
 
         self.rec_x = res.x[0]
         self.rec_y = res.x[1]
@@ -470,3 +517,34 @@ class Facility:
                 func = self.functional(list(self.count_theo(x, y, power, age)))
 
                 file.write(str(age) + '\t' + str(func) + '\n')
+
+    def check_bnds(self, bnds):
+        """Проверяет восстановленные параметры на попадание в диапазон границ.
+            Иначе присваивает им граничные значения"""
+        # x0
+        if self.rec_x < bnds[0][0]:
+            self.rec_x = bnds[0][0]
+
+        if self.rec_x > bnds[0][1]:
+            self.rec_x = bnds[0][1]
+
+        # y0
+        if self.rec_y < bnds[1][0]:
+            self.rec_x = bnds[1][0]
+
+        if self.rec_x > bnds[1][1]:
+            self.rec_x = bnds[1][1]
+
+        # Мощность
+        if self.rec_power < bnds[2][0]:
+            self.rec_x = bnds[2][0]
+
+        if self.rec_power > bnds[2][1]:
+            self.rec_x = bnds[2][1]
+
+        # Возраст
+        if self.rec_age < bnds[3][0]:
+            self.rec_x = bnds[3][0]
+
+        if self.rec_age > bnds[3][1]:
+            self.rec_x = bnds[3][1]

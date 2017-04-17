@@ -74,12 +74,12 @@ def get_theta():
 def get_power():
     """Получаем мощность методом обратных функций"""
     beta = 2.5  # Показатель степени
-    a = 10**5  # Нижняя граница жнергетического диапазона
+    a = 10**5  # Нижняя граница диапазона мощности
     gm = rn.random()
 
     power = a * pow((1 - gm), 1/(1 - beta))
 
-    if power < 10**5 or power > 10**9:
+    if power < 10**4 or power > 10**9:
         return get_power()
 
     return power
@@ -93,7 +93,7 @@ def get_age(power, theta):
     s_1 = 0.7
 
     n_2 = 10**5
-    s_2 = 1.6
+    s_2 = 1.4
 
     b = (s_2 - (n_2 * s_1)/n_1) / (1 - n_2/n_1)
     k = (s_1 - b)/n_1

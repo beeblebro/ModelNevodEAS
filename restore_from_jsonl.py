@@ -55,7 +55,7 @@ for line in f_data:
     NevodEAS.rec_direction()
     NevodEAS.rec_particles()
 
-    if NevodEAS.rec_params_slsqp():
+    if NevodEAS.rec_params_powell():
         f_dump.write(str(NevodEAS.rec_theta) + '\t' + str(NevodEAS.rec_phi) + '\t' +
                      str(NevodEAS.rec_x) + '\t' + str(NevodEAS.rec_y) + '\t' +
                      str(NevodEAS.rec_power) + '\t' + str(NevodEAS.rec_age) + '\n')
@@ -63,7 +63,7 @@ for line in f_data:
     NevodEAS.reset()
 
     print(num)
-    if num == 9999:
+    if num == 999:
         break
 
 f_data.close()
