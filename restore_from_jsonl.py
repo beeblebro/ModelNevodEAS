@@ -5,12 +5,13 @@ from core import Facility
 from core import Eas
 from core.utils import get_theta, get_power, get_age
 
-f_data = open('model_10k.jsonl', 'r')
-f_dump = open('restore.txt', 'w')
-f_dump_params = open('params.txt', 'w')
+f_data = open('model_10k_flat.jsonl', 'r')
+f_dump = open('restore_flat.txt', 'w')
+f_dump_params = open('params_flat.txt', 'w')
+f_dump_func = open('func_flat.txt', 'w')
 
 # Создали устаовку
-NevodEAS = Facility(geometry='nevod')
+NevodEAS = Facility(geometry='flat')
 
 for line in f_data:
     event = json.loads(line)
@@ -56,9 +57,20 @@ for line in f_data:
     NevodEAS.rec_particles()
 
     if NevodEAS.rec_params_powell():
+
+        params = [x0, y0, power, age]
+        rec_params = [NevodEAS.rec_x, NevodEAS.rec_y, NevodEAS.rec_power, NevodEAS.rec_age]
+
         f_dump.write(str(NevodEAS.rec_theta) + '\t' + str(NevodEAS.rec_phi) + '\t' +
-                     str(NevodEAS.rec_x) + '\t' + str(NevodEAS.rec_y) + '\t' +
-                     str(NevodEAS.rec_power) + '\t' + str(NevodEAS.rec_age) + '\n')
+                     str(rec_params[0]) + '\t' + str(rec_params[1]) + '\t' +
+                     str(rec_params[2]) + '\t' + str(rec_params[3]) + '\n')
+
+        func = NevodEAS.func(params)
+        func_rec = NevodEAS.func(rec_params)
+        delta_func = func - func_rec
+
+        f_dump_func.write(str(func) + '\t' + str(func_rec) + '\t' + str(delta_func) +
+                          '\n')
 
     NevodEAS.reset()
 
@@ -69,4 +81,4 @@ for line in f_data:
 f_data.close()
 f_dump.close()
 f_dump_params.close()
-
+f_dump_func.close()

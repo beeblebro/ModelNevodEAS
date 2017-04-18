@@ -131,8 +131,8 @@ def save_to_bin(file, event_json):
     return b_count
 
 
-def create_json(clusters, count_event, params):
-    """Создаём и заполняем json события"""
+def create_event(clusters, count_event, params):
+    """Создаём и заполняем стурктуру события"""
     clusters_json = []
     for i in range(len(clusters)):
         stations = []
@@ -165,18 +165,37 @@ def create_json(clusters, count_event, params):
 
 
 if __name__ == '__main__':
-    nevod_eas = Facility(geometry='flat')
+    nevod_eas = Facility(geometry='nevod')  # Создали НЕВОД
+    flat_eas = Facility(geometry='flat')  # Создали плоскую установку
     count_event = 10000
-    file_bin = open('model_10k_flat.bin', 'wb')
-    file_json = open('model_10k_flat.jsonl', 'w')
+
+    # Файлы для установки НЕВОД
+    file_bin = open('model_10k.bin', 'wb')
+    file_json = open('model_10k.jsonl', 'w')
+    # Файлы для плоской установки
+    file_json_flat = open('model_10k_flat.jsonl', 'w')
+    file_bin_flat = open('model_10k_flat.bin', 'wb')
+
     for event_number in range(count_event):
         params = create_params()
+        # Запускаем установки
         clusters = run_facility(nevod_eas, params)
-        event_json = create_json(clusters, event_number, params)
-        save_to_bin(file_bin, event_json)
-        save_to_json(file_json, event_json)
+        clusters_flat = run_facility(flat_eas, params)
+
+        event = create_event(clusters, event_number, params)
+        event_flat = create_event(clusters_flat, event_number, params)
+
+        save_to_bin(file_bin, event)
+        save_to_json(file_json, event)
+
+        save_to_bin(file_bin_flat, event_flat)
+        save_to_json(file_json_flat, event_flat)
+
         print(event_number)
         nevod_eas.reset()
+        flat_eas.reset()
 
     file_bin.close()
     file_json.close()
+    file_bin_flat.close()
+    file_json_flat.close()
