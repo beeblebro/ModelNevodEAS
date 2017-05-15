@@ -1,5 +1,5 @@
 # Вспомогательные функции
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from math import pi, pow, sqrt, exp, cos, sin, gamma, log10
 from numpy import array, cross, size
@@ -75,7 +75,7 @@ def get_theta():
 def get_power():
     """Получаем мощность методом обратных функций"""
     beta = 2.5  # Показатель степени
-    a = 10**4  # Нижняя граница диапазона мощности
+    a = 10**5  # Нижняя граница диапазона мощности
     gm = rn.random()
 
     power = a * pow((1 - gm), 1/(1 - beta))
@@ -90,17 +90,17 @@ def get_age(power, theta):
     """Генератор значений возраста"""
     theta_rad = theta * (pi/180)  # Перевели тета в радианы
 
-    n_1 = 10**7
-    s_1 = 0.3
+    n_1 = 10**8
+    s_1 = 0.7
 
     n_2 = 10**5
-    s_2 = 1.17
+    s_2 = 1.4
 
     b = (s_2 - (n_2 * s_1)/n_1) / (1 - n_2/n_1)
     k = (s_1 - b)/n_1
 
     age = k * power + b
-    age = normal(age + 0.3 * sin(theta_rad), 0.17)
+    age = normal(age + 0.3 * sin(theta_rad), 0.10)
 
     if age < 0.5 or age > 2.0:
         return get_age(power, theta)
@@ -127,8 +127,8 @@ def nkg(radius, power, age):
     # Разбили формулу на четыре множителя
     m1 = power / pow(m_radius, 2)
     m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
-    m3 = pow(radius / m_radius, age - 2)
-    m4 = pow(1 + radius / m_radius, age - 4.5)
+    m3 = pow((radius + 1e-10) / m_radius, age - 2)
+    m4 = pow(1 + (radius + 1e-10) / m_radius, age - 4.5)
 
     ro = m1 * m2 * m3 * m4
     # Возвращает поверхностную плотность на расстоянии radius от оси ливня
@@ -142,13 +142,13 @@ def poisson_gauss_gen(n):
     else:
         return round(normal(n, sqrt(n)))
 
-d_power = []
-d_age = []
-for i in range(100000):
-    d_power.append(log10(get_power()))
-    d_age.append(get_age(get_power(), get_theta()))
-
-plt.hist(d_power, bins='auto')
-plt.hist(d_age, bins='auto')
-
-plt.show()
+# d_age = []
+# d_power = []
+# for i in range(100000):
+#     d_power.append(log10(get_power()))
+#     d_age.append(get_age(get_power(), get_theta()))
+#
+# plt.hist(d_power, bins='auto')
+# plt.hist(d_age, bins='auto')
+#
+# plt.show()

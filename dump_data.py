@@ -37,8 +37,8 @@ def create_params():
     """Задаём параметры ливня"""
     theta = get_theta()  # Тета в градусах
     phi = rn.uniform(0, 360)  # и фи в градусах
-    x0 = rn.uniform(-50, 50)
-    y0 = rn.uniform(-50, 50)
+    x0 = rn.uniform(-80, 80)
+    y0 = rn.uniform(-80, 80)
     power = get_power()
     age = get_age(power, theta)
     return {
@@ -63,10 +63,8 @@ def run_facility(nevod_eas, params):
         params['power'],
         params['age']
     )
-    # Установка получает ливень
-    NevodEAS.get_eas(eas)
-    # Запускаем установку
-    NevodEAS.start()
+    # Передаём ШАЛ и запускаем установку
+    NevodEAS.start(eas)
     return NevodEAS.clusters
 
 
@@ -96,35 +94,38 @@ def save_to_bin(file, event_json):
 
         for st in cl['st']:
 
+            b_count += file.write(struct.pack('ddd', st['x'], st['y'],
+                                  st['z']))
+
             if st['ampl'] is None:
-                b_count += file.write(struct.pack('d', -1.0))
+                b_count += file.write(struct.pack('d', 0.0))
             else:
                 b_count += file.write(struct.pack('d', st['ampl']))
 
             if st['time'] is None:
-                b_count += file.write(struct.pack('d', 0.0))
+                b_count += file.write(struct.pack('d', -1.0))
             else:
                 b_count += file.write(struct.pack('d', st['time']))
 
             if st['add_det_ampl'] is None:
-                b_count += file.write(struct.pack('d', -1.0))
+                b_count += file.write(struct.pack('d', 0.0))
             else:
                 b_count += file.write(struct.pack('d', st['add_det_ampl']))
 
             if st['add_det_time'] is None:
-                b_count += file.write(struct.pack('d', 0.0))
+                b_count += file.write(struct.pack('d', -1.0))
             else:
                 b_count += file.write(struct.pack('d', st['add_det_time']))
 
             for det in st['det']:
 
                 if det['ampl'] is None:
-                    b_count += file.write(struct.pack('d', -1.0))
+                    b_count += file.write(struct.pack('d', 0.0))
                 else:
                     b_count += file.write(struct.pack('d', st['ampl']))
 
                 if st['time'] is None:
-                    b_count += file.write(struct.pack('d', 0.0))
+                    b_count += file.write(struct.pack('d', -1.0))
                 else:
                     b_count += file.write(struct.pack('d', st['time']))
 
@@ -144,6 +145,10 @@ def create_event(clusters, count_event, params):
     for cl_n, cl in enumerate(clusters):
 
         for st_n, st in enumerate(cl.stations):
+            clusters_json[cl_n]['st'][st_n]['x'] = st.coord[0]
+            clusters_json[cl_n]['st'][st_n]['y'] = st.coord[1]
+            clusters_json[cl_n]['st'][st_n]['z'] = st.coord[2]
+
             clusters_json[cl_n]['st'][st_n]['ampl'] = st.amplitude
             clusters_json[cl_n]['st'][st_n]['time'] = st.rndm_time
 
@@ -167,7 +172,7 @@ def create_event(clusters, count_event, params):
 if __name__ == '__main__':
     nevod_eas = Facility(geometry='nevod')  # Создали НЕВОД
     flat_eas = Facility(geometry='flat')  # Создали плоскую установку
-    count_event = 10000
+    count_event = 1000
 
     # Файлы для установки НЕВОД
     file_bin = open('model_10k.bin', 'wb')

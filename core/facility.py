@@ -1,6 +1,6 @@
-from scipy.optimize import minimize, brute, basinhopping, differential_evolution
+from scipy.optimize import minimize, basinhopping, differential_evolution
 from numpy import array, arctan2, degrees
-from math import sqrt, acos, atan, pi, sin
+from math import sqrt, acos
 
 from core.cluster import Cluster
 from core.utils import divide_square, g_ratio
@@ -21,21 +21,21 @@ class Facility:
                 Cluster([35, 46, -14.5]),
                 Cluster([-2, -47, -14.5]),
                 Cluster([-18, 62, -14.5]),
-                Cluster([50, -2, -2]),
-                Cluster([50, 26, -2]),
-                Cluster([50, 58, -8]),
+                Cluster([60, -2, -2]),
+                Cluster([60, 26, -2]),
+                Cluster([60, 58, -8]),
             ]
         elif geometry == 'flat':
             self.clusters = [
-                Cluster([-30.0, 30.0, 0.0], 20.0, 20.0),
-                Cluster([0.0, 30.0, 0.0], 20.0, 20.0),
-                Cluster([30.0, 30.0, 0.0], 20.0, 20.0),
-                Cluster([-30.0, 0.0, 0.0], 20.0, 20.0),
+                Cluster([-60.0, 60.0, 0.0], 20.0, 20.0),
+                Cluster([0.0, 60.0, 0.0], 20.0, 20.0),
+                Cluster([60.0, 60.0, 0.0], 20.0, 20.0),
+                Cluster([-60.0, 0.0, 0.0], 20.0, 20.0),
                 Cluster([0.0, 0.0, 0.0], 20.0, 20.0),
-                Cluster([30.0, 0.0, 0.0], 20.0, 20.0),
-                Cluster([-30.0, -30.0, 0.0], 20.0, 20.0),
-                Cluster([0.0, -30.0, 0.0], 20.0, 20.0),
-                Cluster([30.0, -30.0, 0.0], 20.0, 20.0),
+                Cluster([60.0, 0.0, 0.0], 20.0, 20.0),
+                Cluster([-60.0, -60.0, 0.0], 20.0, 20.0),
+                Cluster([0.0, -60.0, 0.0], 20.0, 20.0),
+                Cluster([60.0, -60.0, 0.0], 20.0, 20.0),
             ]
 
         self.grid_steps = 5  # Число шагов по сетке
@@ -56,12 +56,6 @@ class Facility:
 
         self.real_n = None  # Настоящий вектор ШАЛ
 
-    def get_eas(self, eas):
-        """Все кластеры получают ШАЛ"""
-        self.real_n = eas.n
-        for cluster in self.clusters:
-            cluster.get_eas(eas)
-
     def reset(self):
         """Сбрасываем все кластеры"""
         for cluster in self.clusters:
@@ -76,45 +70,22 @@ class Facility:
         self.rec_power = None
         self.rec_theta = None
         self.rec_phi = None
+        self.real_n = None
 
-    def start(self):
-        """Запуск всех кластеров"""
-        self.clust_ok = 0
-        self.average_n = [0, 0, 0]
+    def get_eas(self, eas):
+        """Получить данные ШАЛ без запуска"""
+        self.real_n = eas.n
         for cluster in self.clusters:
-            if cluster.start():
-                self.average_n += cluster.rec_n
-                self.clust_ok += 1
-        if self.clust_ok == 0:
-            print("ERROR: Не сработал ни один кластер")
-            return False
-        # Получили средний из восстановленных векторов
-        self.average_n /= self.clust_ok
-        # Средняя амплитуда с поправкой на косинус тета
-        fixed_av_ampl = get_av_amplitude() / self.average_n[2]
+            cluster.get_eas(eas)
 
-        particles_sum = 0
-        self.average_x0 = 0
-        self.average_y0 = 0
-        for cl in self.clusters:
-            for st in cl.stations:
-
-                # Получаем экспериментальное число частиц в станции
-                st.particles = st.amplitude / fixed_av_ampl
-
-                self.exp_n.append(st.particles)
-                self.sigma_n.append(st.sigma_particles)
-
-                particles_sum += st.particles
-                self.average_x0 += st.coord[0] * st.particles
-                self.average_y0 += st.coord[1] * st.particles
-        self.average_x0 /= particles_sum
-        self.average_y0 /= particles_sum
-        return True
+    def start(self, eas):
+        """Запуск кластеров"""
+        self.real_n = eas.n
+        for cluster in self.clusters:
+            cluster.start(eas)
 
     def set_facility_state(self, evt):
-        """Устанавливаем состояние установки в соответствии с прочитанным событием"""
-        self.clust_ok = 0
+        """Устанавить состояние установки в соответствии с прочитанным событием"""
         for cl_n, cl in enumerate(self.clusters):
 
             st_ok = 0
@@ -131,12 +102,16 @@ class Facility:
 
             if st_ok == 4:
                 cl.respond = True
-                self.clust_ok += 1
             else:
                 cl.respond = False
 
-        self.rec_direction()
-        self.rec_particles()
+        d = self.rec_direction()
+        p = self.rec_particles()
+
+        if d and p:
+            return True
+        else:
+            return False
 
     def rec_direction(self):
         """Восстановление направления ШАЛ"""
@@ -193,19 +168,6 @@ class Facility:
 
         self.average_x0 /= particles_sum
         self.average_y0 /= particles_sum
-
-        return True
-
-    def rec_params_brute(self):
-
-        ranges = ((-50, 50), (-50, 50), (10**5, 10**8), (0.7, 2.0))
-
-        res = brute(self.func, ranges, full_output=True, finish=None)
-
-        self.rec_x = res[0][0]
-        self.rec_y = res[0][1]
-        self.rec_power = res[0][2]
-        self.rec_age = res[0][3]
 
         return True
 
@@ -272,13 +234,13 @@ class Facility:
         return True
 
     def rec_params_diff_evo(self):
-
+        """Восстановление параметров ШАЛ методом дифференциальной эволюции"""
         # _x = self.average_x0
         # _y = self.average_y0
         # _power = 10 ** 5
         # _age = 1.3
         # _args = array([_x, _y, _power, _age])
-        _bnds = ((-50, 50), (-50, 50), (10**5, 10**8), (0.7, 2.0))
+        _bnds = ((-100, 100), (-100, 100), (10**5, 10**8), (0.5, 2.0))
 
         res = differential_evolution(self.func, _bnds, maxiter=2000, disp=False,
                                      polish=True)

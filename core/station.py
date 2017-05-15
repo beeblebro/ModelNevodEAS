@@ -19,17 +19,15 @@ class Station:
         self.num = number  # Нормер станции в кластере
         self.coord = array(coordinates)  # Координаты станции
         self.area = 2.56  # Площадь станции [м2]
+        self.sigma_t = 3.7  # Точность временной привязки
         self.respond = None  # Отклик станции
         self.particles = None  # Экспериментальное число частиц
         self.real_time = None  # Истинное время срабатывания станции [нс]
         self.rndm_time = None  # Рандомизированное время станции [нс]
         self.rec_particles = None  # Восстановленное число частиц
-        self.sigma_t = 5  # Ошибка определения времени [нс]
         self.amplitude = None  # Амплитуда сигнала от станции [пКл]
         self.sigma_particles = None  # Ошибка для функционала по частицам
         self.add_ampl = None  # Амплитуда сигнала от доп.ФЭУ
-
-        # self.Det = namedtuple('Det', 'coord time ampl particles respond')
 
         # Детекторы станции
         self.detectors = (
@@ -94,19 +92,11 @@ class Station:
         self.add_det['respond'] = None
         self.add_det['particles'] = None
 
-        # Обнуляем именованные кортежи детекторов
-        # self.det1 = None
-        # self.det2 = None
-        # self.det3 = None
-        # self.det4 = None
-        # self.det5 = None
-
     def start(self, eas):
         """Запуск станции"""
         if self.model_ampl(eas):
             self.model_times(eas)
 
-        # self.pack_namedtuples()
         return self.respond
 
     def model_ampl(self, eas):
@@ -117,7 +107,7 @@ class Station:
 
         for det in self.detectors:
             dist = get_distance(det['coord'], eas.n, eas.x0, eas.y0)
-            temp = det_area * eas.n[2] * nkg(dist, eas.power, eas.age)
+            temp = det_area * abs(eas.n[2]) * nkg(dist, eas.power, eas.age)
             # p - временная переменная для хранения числа частиц
             # a - для амплитуды
             if _enabled_gen:
@@ -179,12 +169,3 @@ class Station:
         # Дополнительный крадёт время у соседа
         self.add_det['time'] = self.detectors[self.num - 1]['time']
         return self.respond
-
-    # def pack_namedtuples(self):
-    #     """Представим детекторы в виде именованных кортежей"""
-    #     self.det1 = self.Det(**self.detectors[0])
-    #     self.det2 = self.Det(**self.detectors[1])
-    #     self.det3 = self.Det(**self.detectors[2])
-    #     self.det4 = self.Det(**self.detectors[3])
-    #
-    #     self.det5 = self.Det(**self.add_det)

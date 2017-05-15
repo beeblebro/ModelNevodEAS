@@ -1,11 +1,14 @@
-from math import pow, sqrt, pi, gamma, modf
+from math import pow, sqrt, pi, gamma
 from numpy import array
 from numpy.random import poisson, normal
 from numpy.linalg import det
 
 from core.station import Station
 from core.amplitude import *
-from core.utils import get_distance, randomize_time
+from core.utils import get_distance, nkg
+
+light_speed = 0.299792458
+m_radius = 71  # Радиус Мольера [м]
 
 
 class Cluster:
@@ -46,29 +49,21 @@ class Cluster:
         )
 
     def get_eas(self, eas):
-        """Получаем ШАЛ"""
+        """Получаем ШАЛ без запуска"""
         self.eas = eas
 
-    # def start(self):
-    #     """Запуск кластера"""
-    #     if self.model_ampl_new():
-    #         self.model_times_new()
-    #
-    #         self.rec_direction()
-    #         return self.respond
-    #     else:
-    #         return False
-
-    def start(self):
+    def start(self, eas):
         """Запуск кластера"""
+        # Получаем ШАЛ
+        self.eas = eas
         # Счётчик сработавших станций
-        st_ok = 0
+        self.st_ok = 0
         for st in self.stations:
             # Запускаем станции
             if st.start(self.eas):
-                st_ok += 1
+                self.st_ok += 1
 
-        if st_ok != 0:
+        if self.st_ok != 0:
             # Если что-то сработало
             temp = []
 
@@ -81,14 +76,11 @@ class Cluster:
                 if st.respond:
                     st.rndm_time -= min_t
 
-        if st_ok == 4:
-            # Можем попытаться восстановить направление
-            if self.rec_direction():
-                self.respond = True
-            else:
-                self.respond = False
+        if self.st_ok == 4:
+            # Кластер сработал (четырёхкратные совпадения)
+            self.respond = True
         else:
-            # Не можем восстановить направление
+            # Кластер не сработал
             self.respond = False
 
         return self.respond
@@ -102,63 +94,6 @@ class Cluster:
         self.st_ok = None
         for station in self.stations:
             station.reset()
-
-    def model_amplitudes(self):
-        """Моделирование амплитуд, полученных от станций"""
-        _enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
-
-        for st in self.stations:
-            dist = get_distance(st.coord, self.eas.n, self.eas.x0, self.eas.y0)
-            temp = st.area * self.eas.n[2] * self.nkg(dist, self.eas.power, self.eas.age)
-
-            if _enabled_gen:
-                st.particles = self._poisson_gauss_gen(temp)
-            else:
-                st.particles = temp
-
-            if st.particles == 0:
-                # Станция не сработала
-                st.respond = False
-                # Не сработал и кластер (четырёхкратные совпадения)
-                self.respond = False
-                st.sigma_particles = 1.3
-                st.amplitude = 0
-            else:
-                # Станция сработала
-                st.respond = True
-                st.amplitude = 0
-                for j in range(int(st.particles)):
-                    # Вычисляем амплитуду в станции
-                    st.amplitude += get_amplitude()
-                # Добавим десятичную часть
-                st.amplitude += (get_amplitude() * modf(st.particles)[0])
-                st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
-
-        if self.respond is None:
-            # Если ни одна станция не сменила отклик кластера на False
-            # => кластер сработал
-            self.respond = True
-
-        if self.respond:
-            return True
-        else:
-            return False
-
-    def model_times(self):
-        """Моделирует времена срабатывания станций"""
-        temp = []
-        for station in self.stations:
-            station.real_time = (sum(self.eas.n * station.coord) +
-                                 self.eas.D) / self.eas.light_speed
-
-            station.rndm_time = randomize_time() + station.real_time
-            temp.append(station.rndm_time)
-
-        self.time = max(temp)
-        min_t = min(temp)
-
-        for station in self.stations:
-            station.rndm_time -= min_t
 
     def rec_direction(self):
         """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
@@ -186,7 +121,7 @@ class Cluster:
             sum_tx += (self.stations[i].rndm_time * self.stations[i].coord[0]) / sqr_sigma_t
             sum_ty += (self.stations[i].rndm_time * self.stations[i].coord[1]) / sqr_sigma_t
 
-        sqr_light_speed = pow(self.eas.light_speed, 2)
+        sqr_light_speed = pow(light_speed, 2)
 
         sum0 /= sqr_light_speed
         sum_xx /= sqr_light_speed
@@ -194,9 +129,9 @@ class Cluster:
         sum_yy /= sqr_light_speed
         sum_x /= sqr_light_speed
         sum_y /= sqr_light_speed
-        sum_tx /= self.eas.light_speed
-        sum_ty /= self.eas.light_speed
-        sum_t /= self.eas.light_speed
+        sum_tx /= light_speed
+        sum_ty /= light_speed
+        sum_t /= light_speed
 
         line_1 = [sum_xx, sum_xy, sum_x]
         line_2 = [sum_xy, sum_yy, sum_y]
@@ -208,12 +143,12 @@ class Cluster:
         det3 = det([line_1, line_4, line_3])
         # det4 = det([line_1, line_2, line_4])
 
-        a = - det2 / det1
-        b = - det3 / det1
+        a = det2 / det1
+        b = det3 / det1
 
         if (pow(a, 2) + pow(b, 2)) <= 1:
             # Если вектор восстановился успешно
-            c = - sqrt(1 - pow(a, 2) - pow(b, 2))
+            c = sqrt(1 - pow(a, 2) - pow(b, 2))
             self.rec_n = array([a, b, c])
             self.respond = True
             return True
@@ -228,19 +163,7 @@ class Cluster:
         от оси ШАЛ просиходит с помощью восстанолвенного вектора"""
         for station in self.stations:
             dist = get_distance(station.coord, n, x, y)
-            station.rec_particles = station.area * n[2] * self.nkg(dist, power, age)
-
-    def nkg(self, radius, power, age):
-        """Функция пространственного распределения Нишимуры-Каматы-Грейзена"""
-        # Разбили формулу на четыре множителя
-        m1 = power / pow(self.eas.m_rad, 2)
-        m2 = gamma(4.5 - age) / (2 * pi * gamma(age) * gamma(4.5 - 2 * age))
-        m3 = pow((radius + 1e-10) / self.eas.m_rad, age - 2)
-        m4 = pow(1 + (radius + 1e-10) / self.eas.m_rad, age - 4.5)
-
-        ro = m1 * m2 * m3 * m4
-        # Возвращает поверхностную плотность на расстоянии radius от оси ливня
-        return ro
+            station.rec_particles = station.area * n[2] * nkg(dist, power, age)
 
     @staticmethod
     def _poisson_gauss_gen(n):
