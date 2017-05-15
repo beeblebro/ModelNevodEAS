@@ -20,6 +20,7 @@ class Cluster:
         self.respond = None  # Отклик кластера
         self.rec_n = None  # Координаты восстановленного вектора
         self.time = None  # Время срабатывания кластера [нс]
+        self.st_ok = None  # Число сработавших станций
 
         self.stations = (
             # Создаём станции кластера, задаём им координаты и номера
@@ -98,6 +99,7 @@ class Cluster:
         self.eas = None
         self.time = None
         self.rec_n = None
+        self.st_ok = None
         for station in self.stations:
             station.reset()
 
@@ -206,12 +208,12 @@ class Cluster:
         det3 = det([line_1, line_4, line_3])
         # det4 = det([line_1, line_2, line_4])
 
-        a = det2 / det1
-        b = det3 / det1
+        a = - det2 / det1
+        b = - det3 / det1
 
         if (pow(a, 2) + pow(b, 2)) <= 1:
             # Если вектор восстановился успешно
-            c = sqrt(1 - pow(a, 2) - pow(b, 2))
+            c = - sqrt(1 - pow(a, 2) - pow(b, 2))
             self.rec_n = array([a, b, c])
             self.respond = True
             return True

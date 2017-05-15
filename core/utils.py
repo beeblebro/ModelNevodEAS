@@ -1,6 +1,7 @@
 # Вспомогательные функции
+import matplotlib.pyplot as plt
 
-from math import pi, pow, sqrt, exp, cos, sin, gamma
+from math import pi, pow, sqrt, exp, cos, sin, gamma, log10
 from numpy import array, cross, size
 from numpy.linalg import norm
 from numpy.random import normal, poisson
@@ -74,7 +75,7 @@ def get_theta():
 def get_power():
     """Получаем мощность методом обратных функций"""
     beta = 2.5  # Показатель степени
-    a = 10**5  # Нижняя граница диапазона мощности
+    a = 10**4  # Нижняя граница диапазона мощности
     gm = rn.random()
 
     power = a * pow((1 - gm), 1/(1 - beta))
@@ -89,19 +90,19 @@ def get_age(power, theta):
     """Генератор значений возраста"""
     theta_rad = theta * (pi/180)  # Перевели тета в радианы
 
-    n_1 = 10**9
-    s_1 = 0.7
+    n_1 = 10**7
+    s_1 = 0.3
 
     n_2 = 10**5
-    s_2 = 1.4
+    s_2 = 1.17
 
     b = (s_2 - (n_2 * s_1)/n_1) / (1 - n_2/n_1)
     k = (s_1 - b)/n_1
 
     age = k * power + b
-    age = normal(age + 0.3 * sin(theta_rad), 0.1)
+    age = normal(age + 0.3 * sin(theta_rad), 0.17)
 
-    if age < 0.7 or age > 2.0:
+    if age < 0.5 or age > 2.0:
         return get_age(power, theta)
 
     return age
@@ -140,3 +141,14 @@ def poisson_gauss_gen(n):
         return poisson(n)
     else:
         return round(normal(n, sqrt(n)))
+
+d_power = []
+d_age = []
+for i in range(100000):
+    d_power.append(log10(get_power()))
+    d_age.append(get_age(get_power(), get_theta()))
+
+plt.hist(d_power, bins='auto')
+plt.hist(d_age, bins='auto')
+
+plt.show()

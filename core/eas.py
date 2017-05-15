@@ -18,11 +18,10 @@ class Eas:
         self.D = 1000  # Параметр D плоскости ливня
         self.tau = 5 / (3**0.5)  # Параметр тау в формуле временного профиля ШАЛ
         # n - истинный вектор прихода ШАЛ. т.е. нормаль к плоскости ливня
-        self.n = array([sin(self.theta) * cos(self.phi),
-                        sin(self.theta) * sin(self.phi),
-                        cos(self.theta)])
+        self.n = array([- sin(self.theta) * cos(self.phi),
+                        - sin(self.theta) * sin(self.phi),
+                        - cos(self.theta)])
 
     def generate_power(self):
         """Сгенерировать энергию"""
         self.power = ((10 ** 6) / (1 - rn.random())) ** (2 / 3)
-
