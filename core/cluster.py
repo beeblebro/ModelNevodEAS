@@ -4,7 +4,6 @@ from numpy.random import poisson, normal
 from numpy.linalg import det
 
 from core.station import Station
-from core.amplitude import *
 from core.utils import get_distance, nkg
 
 light_speed = 0.299792458
@@ -24,6 +23,7 @@ class Cluster:
         self.rec_n = None  # Координаты восстановленного вектора
         self.time = None  # Время срабатывания кластера [нс]
         self.st_ok = None  # Число сработавших станций
+        self.matches_required = 4  # Крастность совпадений
 
         self.stations = (
             # Создаём станции кластера, задаём им координаты и номера
@@ -63,20 +63,7 @@ class Cluster:
             if st.start(self.eas):
                 self.st_ok += 1
 
-        if self.st_ok != 0:
-            # Если что-то сработало
-            temp = []
-
-            # Изменим времена срабатывания станций на относительные
-            for st in self.stations:
-                if st.respond:
-                    temp.append(st.rndm_time)
-            min_t = min(temp)
-            for st in self.stations:
-                if st.respond:
-                    st.rndm_time -= min_t
-
-        if self.st_ok == 4:
+        if self.st_ok >= self.matches_required:
             # Кластер сработал (четырёхкратные совпадения)
             self.respond = True
         else:
@@ -95,8 +82,34 @@ class Cluster:
         for station in self.stations:
             station.reset()
 
+    def set_cluster_state(self, evt_cluster):
+        """Устанавливаем состояние кластера  в соответствии
+        с прочитанным событием"""
+        self.st_ok = 0
+        for st_n, st in enumerate(self.stations):
+            if st.set_station_state(evt_cluster['st'][st_n]):
+                self.st_ok += 1
+
+        if self.st_ok == 4:
+            self.respond = True
+        else:
+            self.respond = False
+
+        return self.respond
+
+    def make_times_relative(self):
+        """Делает времена срабатывания станций относительными"""
+        temp = [st.rndm_time for st in self.stations if st.respond]
+        min_t = min(temp)
+        for st in self.stations:
+            if st.respond:
+                st.rndm_time -= min_t
+
     def rec_direction(self):
         """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
+
+        # Изменим времена срабатывания станций на относительные
+        self.make_times_relative()
 
         sum0 = 0
         sum_x = 0
@@ -108,18 +121,18 @@ class Cluster:
         sum_tx = 0
         sum_ty = 0
 
-        for i in range(4):
-            sqr_sigma_t = pow(self.stations[i].sigma_t, 2)
+        for st in self.stations:
+            sqr_sigma_t = pow(st.sigma_t, 2)
 
             sum0 += 1 / sqr_sigma_t
-            sum_t += self.stations[i].rndm_time / sqr_sigma_t
-            sum_x += self.stations[i].coord[0] / sqr_sigma_t
-            sum_y += self.stations[i].coord[1] / sqr_sigma_t
-            sum_xx += pow(self.stations[i].coord[0], 2) / sqr_sigma_t
-            sum_yy += pow(self.stations[i].coord[1], 2) / sqr_sigma_t
-            sum_xy += (self.stations[i].coord[0] * self.stations[i].coord[1]) / sqr_sigma_t
-            sum_tx += (self.stations[i].rndm_time * self.stations[i].coord[0]) / sqr_sigma_t
-            sum_ty += (self.stations[i].rndm_time * self.stations[i].coord[1]) / sqr_sigma_t
+            sum_t += st.rndm_time / sqr_sigma_t
+            sum_x += st.coord[0] / sqr_sigma_t
+            sum_y += st.coord[1] / sqr_sigma_t
+            sum_xx += pow(st.coord[0], 2) / sqr_sigma_t
+            sum_yy += pow(st.coord[1], 2) / sqr_sigma_t
+            sum_xy += (st.coord[0] * st.coord[1]) / sqr_sigma_t
+            sum_tx += (st.rndm_time * st.coord[0]) / sqr_sigma_t
+            sum_ty += (st.rndm_time * st.coord[1]) / sqr_sigma_t
 
         sqr_light_speed = pow(light_speed, 2)
 
@@ -157,13 +170,14 @@ class Cluster:
             print("ERROR: Не удалось восстановить направление")
             return False
 
-    def rec_particles(self, n, x, y, power, age):
+    def rec_particles(self, n, params):
         """Восстанавливаем число частиц в каждой станции, предполагая мощность
         координаты прихода ШАЛ, мощность и возраст. А вычисление расстояния до станций 
         от оси ШАЛ просиходит с помощью восстанолвенного вектора"""
         for station in self.stations:
-            dist = get_distance(station.coord, n, x, y)
-            station.rec_particles = station.area * n[2] * nkg(dist, power, age)
+            dist = get_distance(station.coord, n, params[0], params[1])
+            station.rec_particles = station.area * n[2] * nkg(dist, params[2],
+                                                              params[3])
 
     @staticmethod
     def _poisson_gauss_gen(n):

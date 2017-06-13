@@ -60,6 +60,16 @@ def get_distance(st_coord, n, x0, y0):
     return norm(b, ord=2)
 
 
+def modified_area():
+    """Более эффективные координаты ШАЛ"""
+    x = rn.uniform(-40, 80)
+    y = rn.uniform(-60, 80)
+
+    if y < -20 and not -20 < x < 20:
+        return modified_area()
+    return x, y
+
+
 def get_theta():
     """Методом Неймана получаем случайный зенитный угол"""
     while True:
@@ -91,7 +101,7 @@ def get_age(power, theta):
     theta_rad = theta * (pi/180)  # Перевели тета в радианы
 
     n_1 = 10**8
-    s_1 = 0.7
+    s_1 = 0.8
 
     n_2 = 10**5
     s_2 = 1.4

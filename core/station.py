@@ -1,14 +1,12 @@
-from collections import namedtuple
 from numpy import array
 from core.utils import get_distance, nkg, poisson_gauss_gen, randomize_time
 from core.amplitude import get_amplitude, get_sqr_sigma
 from math import modf, sqrt
 
 h_side = 0.8  # Половина стороны станции [м]
-max_ampl = 1500.0  # Максимальная амплитуда пКл
+max_ampl = 1500  # Максимальная амплитуда пКл
 side = 1.6  # Длина стороны станции [м]
 det_area = 0.64  # Площадь детектора [м2]
-# multiplicity_of_matches = 3  # Кратность совпадений
 
 
 class Station:
@@ -69,6 +67,13 @@ class Station:
             'respond': None
         }
 
+    def start(self, eas):
+        """Запуск станции"""
+        if self.model_ampl(eas):
+            self.model_times(eas)
+
+        return self.respond
+
     def reset(self):
         """Возвращаемся к исходному состоянию"""
         self.respond = None
@@ -92,10 +97,16 @@ class Station:
         self.add_det['respond'] = None
         self.add_det['particles'] = None
 
-    def start(self, eas):
-        """Запуск станции"""
-        if self.model_ampl(eas):
-            self.model_times(eas)
+    def set_station_state(self, evt_station):
+        """Устанавливаем состояние станции в соответствии с
+        прчитанным событием"""
+        self.amplitude = evt_station['ampl']
+        self.rndm_time = evt_station['time']
+
+        if self.amplitude > 0 and self.rndm_time is not None:
+            self.respond = True
+        else:
+            self.respond = False
 
         return self.respond
 

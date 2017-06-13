@@ -1,16 +1,19 @@
 from scipy.optimize import minimize, basinhopping, differential_evolution
 from numpy import array, arctan2, degrees
+from numpy.linalg import det
 from math import sqrt, acos
 
 from core.cluster import Cluster
 from core.utils import divide_square, g_ratio
 from core.amplitude import *
 
+light_speed = 0.299792458  # Скорость света [м/нс]
+
 
 class Facility:
     """Класс для представления установки НЕВОД-ШАЛ"""
 
-    def __init__(self, geometry='nevod'):
+    def __init__(self, geometry='nevod', num=None):
 
         if geometry == 'nevod':
             self.clusters = [
@@ -38,10 +41,13 @@ class Facility:
                 Cluster([60.0, -60.0, 0.0], 20.0, 20.0),
             ]
 
+        self.num = num  # Номер установки, если создали много штука
+
         self.grid_steps = 5  # Число шагов по сетке
         self.power_age_steps = 5  # Число шагов поиска мощности и возраста
 
         self.average_n = None  # Средний из восстановленных векторов
+        self.rec_n = None  # Восстановленный вектор по установке
         self.rec_power = None  # Восстановленная мощность
         self.rec_age = None  # Восстановленный возраст
         self.rec_x = None  # Восстановленне координаты прихода ШАЛ
@@ -61,6 +67,7 @@ class Facility:
         for cluster in self.clusters:
             cluster.reset()
         self.average_n = None
+        self.rec_n = None
         self.exp_n = []
         self.sigma_n = []
         self.clust_ok = None
@@ -81,57 +88,48 @@ class Facility:
     def start(self, eas):
         """Запуск кластеров"""
         self.real_n = eas.n
+        cl_ok = 0
         for cluster in self.clusters:
-            cluster.start(eas)
+            if cluster.start(eas):
+                cl_ok += 1
+
+        if cl_ok == 0:
+            return False
+        else:
+            return True
 
     def set_facility_state(self, evt):
-        """Устанавить состояние установки в соответствии с прочитанным событием"""
+        """Устанавить состояние установки в соответствии с
+        прочитанным событием"""
+        self.clust_ok = 0
         for cl_n, cl in enumerate(self.clusters):
+            if cl.set_cluster_state(evt['clusters'][cl_n]):
+                self.clust_ok += 1
 
-            st_ok = 0
-            for st_n, st in enumerate(cl.stations):
-                st.amplitude = evt['clusters'][cl_n]['st'][st_n]['ampl']
-                st.rndm_time = evt['clusters'][cl_n]['st'][st_n]['time']
-
-                # Расставим правильные отклики, т.к. их не сохраняли
-                if st.amplitude is not None and st.rndm_time is not None:
-                    st.respond = True
-                    st_ok += 1
-                else:
-                    st.respond = False
-
-            if st_ok == 4:
-                cl.respond = True
-            else:
-                cl.respond = False
-
-        d = self.rec_direction()
-        p = self.rec_particles()
-
-        if d and p:
-            return True
-        else:
+        if self.clust_ok <= 0:
             return False
+        else:
+            return True
 
     def rec_direction(self):
         """Восстановление направления ШАЛ"""
-        self.clust_ok = 0
+        cl_ok = 0  # Считаем кластеры, которые смогли восстановить направление
         self.average_n = [0, 0, 0]
         for cl in self.clusters:
             if cl.respond:
                 if cl.rec_direction():
                     self.average_n += cl.rec_n
-                    self.clust_ok += 1
+                    cl_ok += 1
 
         self.average_n = array(self.average_n)
-        if self.clust_ok == 0:
+        if cl_ok == 0:
             print("ERROR: Не воссталовилось направление")
             return False
         else:
-            self.average_n /= self.clust_ok
+            self.average_n /= cl_ok
 
             self.rec_theta = acos(abs(self.average_n[2]))
-            self.rec_phi = arctan2(-self.average_n[1], -self.average_n[0])
+            self.rec_phi = arctan2(self.average_n[1], self.average_n[0])
             if self.rec_phi < 0:
                 self.rec_phi += 2 * pi
 
@@ -141,7 +139,8 @@ class Facility:
             return True
 
     def rec_particles(self):
-        """Восстановление числа частиц в станциях"""
+        """Восстановление числа частиц в станциях, заполняем экспериментальное
+        число частиц для функционала"""
         if self.average_n is None or self.average_n[2] == 0:
             print("ERROR: Не восстановлились частицы")
             return False
@@ -171,6 +170,85 @@ class Facility:
 
         return True
 
+    def make_times_relative(self):
+        """Сделаем времена относительными по установке"""
+
+        # Записали сюда все времена сработавших станций по установке
+        temp = [st.rndm_time for cl in self.clusters for st in cl.stations if st.respond]
+        min_t = min(temp)
+
+        for cl in self.clusters:
+            for st in cl.stations:
+                if st.respond:
+                    st.rndm_time -= min_t
+
+        return True
+
+    def rec_direction_new(self):
+        """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
+
+        # Изменим времена срабатывания станций на относительные
+        self.make_times_relative()
+
+        sum0 = 0
+        sum_x = 0
+        sum_y = 0
+        sum_xx = 0
+        sum_yy = 0
+        sum_xy = 0
+        sum_t = 0
+        sum_tx = 0
+        sum_ty = 0
+
+        for cl in self.clusters:
+            for st in cl.stations:
+                if st.respond:
+                    sqr_sigma_t = pow(st.sigma_t, 2)
+
+                    sum0 += 1 / sqr_sigma_t
+                    sum_t += st.rndm_time / sqr_sigma_t
+                    sum_x += st.coord[0] / sqr_sigma_t
+                    sum_y += st.coord[1] / sqr_sigma_t
+                    sum_xx += pow(st.coord[0], 2) / sqr_sigma_t
+                    sum_yy += pow(st.coord[1], 2) / sqr_sigma_t
+                    sum_xy += (st.coord[0] * st.coord[1]) / sqr_sigma_t
+                    sum_tx += (st.rndm_time * st.coord[0]) / sqr_sigma_t
+                    sum_ty += (st.rndm_time * st.coord[1]) / sqr_sigma_t
+
+        sqr_light_speed = pow(light_speed, 2)
+
+        sum0 /= sqr_light_speed
+        sum_xx /= sqr_light_speed
+        sum_xy /= sqr_light_speed
+        sum_yy /= sqr_light_speed
+        sum_x /= sqr_light_speed
+        sum_y /= sqr_light_speed
+        sum_tx /= light_speed
+        sum_ty /= light_speed
+        sum_t /= light_speed
+
+        line_1 = [sum_xx, sum_xy, sum_x]
+        line_2 = [sum_xy, sum_yy, sum_y]
+        line_3 = [sum_x, sum_y, sum0]
+        line_4 = [sum_tx, sum_ty, sum_t]
+
+        det1 = det([line_1, line_2, line_3])
+        det2 = det([line_4, line_2, line_3])
+        det3 = det([line_1, line_4, line_3])
+        # det4 = det([line_1, line_2, line_4])
+
+        a = det2 / det1
+        b = det3 / det1
+
+        if (pow(a, 2) + pow(b, 2)) <= 1:
+            # Если вектор восстановился успешно
+            c = sqrt(1 - pow(a, 2) - pow(b, 2))
+            self.rec_n = array([a, b, c])
+            return True
+        else:
+            print("ERROR: Не удалось восстановить направление")
+            return False
+
     def rec_params_nelder_mead(self):
 
         _x = self.average_x0
@@ -196,7 +274,7 @@ class Facility:
         _x = self.average_x0
         _y = self.average_y0
         _power = 10 ** 5
-        _age = 1.3
+        _age = 1.5
         _args = array([_x, _y, _power, _age])
         _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
 
@@ -240,7 +318,7 @@ class Facility:
         # _power = 10 ** 5
         # _age = 1.3
         # _args = array([_x, _y, _power, _age])
-        _bnds = ((-100, 100), (-100, 100), (10**5, 10**8), (0.5, 2.0))
+        _bnds = ((-80, 120), (-100, 120), (10**5, 10**8), (0.5, 2.0))
 
         res = differential_evolution(self.func, _bnds, maxiter=2000, disp=False,
                                      polish=True)
@@ -250,7 +328,10 @@ class Facility:
             self.rec_y = res.x[1]
             self.rec_power = res.x[2]
             self.rec_age = res.x[3]
-            return True
+            return [self.num,
+                    self.rec_theta, self.rec_phi,
+                    self.rec_x, self.rec_y,
+                    self.rec_power, self.rec_age]
         else:
             return False
 
@@ -398,7 +479,8 @@ class Facility:
         return {'func': min_func, 'power': power, 'age': age}
 
     def rec_power_age(self, x, y, power_0, age_0, min_func, flag):
-        """Общая функция для варьирования мощности или возраста для каждой точки"""
+        """Общая функция для варьирования мощности или возраста 
+        для каждой точки"""
 
         if flag == "power":
             # Восстанавливаем мощность
@@ -466,32 +548,25 @@ class Facility:
 
         return {'func': func, 'power': power, 'age': age}
 
-    def count_theo(self, x, y, power, age):
+    def count_theo(self, params):
         """Подсчёт теоретическиого числа частиц для каждой станции, возвращает
         генератор"""
         for cluster in self.clusters:
-            cluster.rec_particles(self.average_n, x, y, power, age)
+            cluster.rec_particles(self.average_n, params)
             for station in cluster.stations:
                 yield station.rec_particles
 
     def func(self, params):
         """Функционал одной функцией от параметров ШАЛ в виде ndarray или list"""
-        x = params[0]
-        y = params[1]
-        power = params[2]
-        age = params[3]
-
-        theo_n = list(self.count_theo(x, y, power, age))
+        theo_n = list(self.count_theo(params))
 
         f = 0
-
         if len(self.sigma_n) == len(theo_n) == len(self.exp_n):
             for n_e, n_t, sigma in zip(self.exp_n, theo_n, self.sigma_n):
                 f += ((n_e - n_t) ** 2) / (sigma ** 2)
         else:
             print("ERROR: Не совпадает число параметров в функционале")
             return False
-
         return f
 
     def draw_func_power(self, x, y, age):

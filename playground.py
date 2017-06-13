@@ -43,7 +43,7 @@ if __name__ == '__main__':
     f_restore = open('restore.txt', 'w')
     w_restore = csv.writer(f_restore, dialect="excel-tab")
 
-    zoo = [Facility(geometry='nevod', num=i) for i in range(100)]
+    zoo = [Facility(geometry='nevod', num=i) for i in range(10)]
     set_state(zoo, f_data, w_params)
     p = Pool(8)
     res = p.map(run, zoo)
