@@ -18,6 +18,9 @@ def create_det():
 def create_station(dets):
     """Структура для записи данных станции"""
     return {
+        'x': None,
+        'y': None,
+        'z': None,
         'ampl': None,
         'time': None,
         'add_det_ampl': None,
@@ -37,8 +40,6 @@ def create_params():
     """Задаём параметры ливня"""
     theta = get_theta()  # Тета в градусах
     phi = rn.uniform(0, 360)  # и фи в градусах
-    # x0 = rn.uniform(-80, 80)
-    # y0 = rn.uniform(-80, 80)
     x0, y0 = modified_area()
     power = get_power()
     age = get_age(power, theta)
@@ -98,21 +99,13 @@ def save_to_bin(file, event_json):
             b_count += file.write(struct.pack('ddd', st['x'], st['y'],
                                   st['z']))
 
-            if st['ampl'] is None:
-                b_count += file.write(struct.pack('d', 0.0))
-            else:
-                b_count += file.write(struct.pack('d', st['ampl']))
-
+            b_count += file.write(struct.pack('d', st['ampl']))
             if st['time'] is None:
                 b_count += file.write(struct.pack('d', -1.0))
             else:
                 b_count += file.write(struct.pack('d', st['time']))
 
-            if st['add_det_ampl'] is None:
-                b_count += file.write(struct.pack('d', 0.0))
-            else:
-                b_count += file.write(struct.pack('d', st['add_det_ampl']))
-
+            b_count += file.write(struct.pack('d', st['add_det_ampl']))
             if st['add_det_time'] is None:
                 b_count += file.write(struct.pack('d', -1.0))
             else:
@@ -120,15 +113,11 @@ def save_to_bin(file, event_json):
 
             for det in st['det']:
 
-                if det['ampl'] is None:
-                    b_count += file.write(struct.pack('d', 0.0))
-                else:
-                    b_count += file.write(struct.pack('d', st['ampl']))
-
-                if st['time'] is None:
+                b_count += file.write(struct.pack('d', det['ampl']))
+                if det['time'] is None:
                     b_count += file.write(struct.pack('d', -1.0))
                 else:
-                    b_count += file.write(struct.pack('d', st['time']))
+                    b_count += file.write(struct.pack('d', det['time']))
 
     return b_count
 

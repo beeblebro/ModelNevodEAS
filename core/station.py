@@ -1,10 +1,10 @@
 from numpy import array
 from core.utils import get_distance, nkg, poisson_gauss_gen, randomize_time
-from core.amplitude import get_amplitude, get_sqr_sigma
+from core.amplitude import *
 from math import modf, sqrt
 
 h_side = 0.8  # Половина стороны станции [м]
-max_ampl = 1500  # Максимальная амплитуда пКл
+max_ampl = 1500  # Максимальная амплитуда [пКл]
 side = 1.6  # Длина стороны станции [м]
 det_area = 0.64  # Площадь детектора [м2]
 
@@ -119,36 +119,24 @@ class Station:
         for det in self.detectors:
             dist = get_distance(det['coord'], eas.n, eas.x0, eas.y0)
             temp = det_area * abs(eas.n[2]) * nkg(dist, eas.power, eas.age)
-            # p - временная переменная для хранения числа частиц
-            # a - для амплитуды
+
             if _enabled_gen:
                 p = poisson_gauss_gen(temp)
             else:
                 p = temp
 
-            if p == 0:
-                # Детектор не сработал
-                det['ampl'] = 0.0
-                det['respond'] = False
-                # self.respond = False
-            else:
-                # Детектор сработал
-                det['respond'] = True
-                a = 0.0
-                for j in range(int(p)):
-                    # Вычисляем амплитуду в детекторе
-                    a += get_amplitude()
-                # Добавим десятичную часть
-                a += (get_amplitude() * modf(p)[0])
+            det['particles'] = p
+            det['ampl'] = get_amplitudes(p)
 
-                if a > max_ampl:
-                    a = max_ampl
+            if det['ampl'] == 0:
+                det['respond'] = False
+            else:
+                det['respond'] = True
 
                 self.sigma_particles += sqrt(p * get_sqr_sigma())
-                self.amplitude += a
+                self.amplitude += det['ampl']
 
                 det['particles'] = p
-                det['ampl'] = a
 
         # Дополнительный крадёт данные у ФЭУ-соседа
         self.add_det['ampl'] = self.detectors[self.num - 1]['ampl'] / 100
@@ -168,7 +156,7 @@ class Station:
         """Моделирует времена срабатывания станций"""
         temp = []
         for det in self.detectors:
-            if det['ampl'] != 0.0:
+            if det['ampl'] != 0:
                 det['time'] = (sum(eas.n * det['coord']) + eas.D) / eas.light_speed
                 det['time'] += randomize_time()
                 temp.append(det['time'])

@@ -90,8 +90,11 @@ def get_power():
 
     power = a * pow((1 - gm), 1/(1 - beta))
 
-    if power < 10**4 or power > 10**9:
-        return get_power()
+    while power < 10**4 or power > 10**9:
+        power = a * pow((1 - gm), 1 / (1 - beta))
+
+    # if power < 10**4 or power > 10**9:
+    #     return get_power()
 
     return power
 
@@ -112,8 +115,11 @@ def get_age(power, theta):
     age = k * power + b
     age = normal(age + 0.3 * sin(theta_rad), 0.10)
 
-    if age < 0.5 or age > 2.0:
-        return get_age(power, theta)
+    while age < 0.5 or age > 2.0:
+        age = normal(age + 0.3 * sin(theta_rad), 0.10)
+
+    # if age < 0.5 or age > 2.0:
+    #     return get_age(power, theta)
 
     return age
 
