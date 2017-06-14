@@ -15,7 +15,7 @@ def run(facility):
     x0, y0 = modified_area()
     power = get_power()
     age = get_age(power, theta)
-    params = [theta, phi, x0, y0, power, age]
+    params = [facility.num, theta, phi, x0, y0, power, age]
     eas = Eas(theta, phi, x0, y0, power, age)
     facility.start(eas)
     facility.rec_direction()
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     w_params = csv.writer(f_params, dialect="excel-tab")
     f_restore = open('restore.txt', 'w')
     w_restore = csv.writer(f_restore, dialect="excel-tab")
-    zoo = [Facility() for i in range(100)]
+    zoo = [Facility(geometry='nevod', num=i) for i in range(10)]
     p = Pool(8)
     res = p.map(run, zoo)
     record(res, w_params, w_restore)

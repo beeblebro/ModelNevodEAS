@@ -1,10 +1,9 @@
-from numpy import array
-from core.utils import get_distance, nkg, poisson_gauss_gen, randomize_time
+from numpy import array, sign
+from core.utils import get_distance, nkg, poisson_gauss_gen, randomize_time, light_speed
 from core.amplitude import *
-from math import modf, sqrt
+from math import sqrt
 
 h_side = 0.8  # Половина стороны станции [м]
-max_ampl = 1500  # Максимальная амплитуда [пКл]
 side = 1.6  # Длина стороны станции [м]
 det_area = 0.64  # Площадь детектора [м2]
 
@@ -17,7 +16,7 @@ class Station:
         self.num = number  # Нормер станции в кластере
         self.coord = array(coordinates)  # Координаты станции
         self.area = 2.56  # Площадь станции [м2]
-        self.sigma_t = 3.7  # Точность временной привязки
+        self.sigma_t = 3.7  # Точность временной привязки [нс]
         self.respond = None  # Отклик станции
         self.particles = None  # Экспериментальное число частиц
         self.real_time = None  # Истинное время срабатывания станции [нс]
@@ -31,28 +30,36 @@ class Station:
         self.detectors = (
 
             {
-                'coord': (self.coord[0] - h_side, self.coord[1] + h_side, self.coord[2]),
+                'coord': (self.coord[0] + (-1)**(self.num + 1) * h_side,
+                          self.coord[1] + sign(2.5 - self.num) * h_side,
+                          self.coord[2]),
                 'time': None,
                 'ampl': None,
                 'particles': None,
                 'respond': None},
 
             {
-                'coord': (self.coord[0] + h_side, self.coord[1] + h_side, self.coord[2]),
+                'coord': (self.coord[0] + (-1)**self.num * h_side,
+                          self.coord[1] + sign(2.5 - self.num) * h_side,
+                          self.coord[2]),
                 'time': None,
                 'ampl': None,
                 'particles': None,
                 'respond': None},
 
             {
-                'coord': (self.coord[0] + h_side, self.coord[1] - h_side, self.coord[2]),
+                'coord': (self.coord[0] + (-1)**self.num * h_side,
+                          self.coord[1] + sign(self.num - 2.5) * h_side,
+                          self.coord[2]),
                 'time': None,
                 'ampl': None,
                 'particles': None,
                 'respond': None},
 
             {
-                'coord': (self.coord[0] - h_side, self.coord[1] - h_side, self.coord[2]),
+                'coord': (self.coord[0] + (-1)**(self.num + 1) * h_side,
+                          self.coord[1] + sign(self.num - 2.5) * h_side,
+                          self.coord[2]),
                 'time': None,
                 'ampl': None,
                 'particles': None,
@@ -60,7 +67,8 @@ class Station:
         )
 
         self.add_det = {
-            'coord': self.detectors[self.num - 1]['coord'],
+            # Дополнительный соседствует с 4ым ФЭУ
+            'coord': self.detectors[3]['coord'],
             'time': None,
             'ampl': None,
             'particles': None,
@@ -84,7 +92,7 @@ class Station:
         self.amplitude = None
         self.sigma_particles = None
 
-        for i in range(4):
+        for i in range(len(self.detectors)):
             # Обнуляем словари детекторов
             self.detectors[i]['time'] = None
             self.detectors[i]['ampl'] = None
@@ -114,7 +122,7 @@ class Station:
         """Моделирование амплитуд в счётчиках станций"""
         _enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
         self.amplitude = 0.0
-        self.sigma_particles = 0.0
+        self.sigma_particles = 0
 
         for det in self.detectors:
             dist = get_distance(det['coord'], eas.n, eas.x0, eas.y0)
@@ -128,24 +136,24 @@ class Station:
             det['particles'] = p
             det['ampl'] = get_amplitudes(p)
 
-            if det['ampl'] == 0:
+            if det['ampl'] == 0.0:
                 det['respond'] = False
             else:
                 det['respond'] = True
 
+                # Накапливаем сигму по частицам и амплитуду станции
                 self.sigma_particles += sqrt(p * get_sqr_sigma())
                 self.amplitude += det['ampl']
 
-                det['particles'] = p
-
-        # Дополнительный крадёт данные у ФЭУ-соседа
-        self.add_det['ampl'] = self.detectors[self.num - 1]['ampl'] / 100
-        self.add_det['respond'] = self.detectors[self.num - 1]['respond']
+        # Моделируем отклик дополнительного на основании отклика его соседа
+        self.add_det['particles'] = self.detectors[3]['particles']
+        self.add_det['respond'] = self.detectors[3]['respond']
+        self.add_det['ampl'] = get_amplitudes(self.add_det['particles']) / 100
 
         if self.sigma_particles == 0:
             self.sigma_particles = 1.3
 
-        if self.amplitude > 0.0:
+        if self.amplitude > 0:
             self.respond = True
         else:
             self.respond = False
@@ -156,8 +164,8 @@ class Station:
         """Моделирует времена срабатывания станций"""
         temp = []
         for det in self.detectors:
-            if det['ampl'] != 0:
-                det['time'] = (sum(eas.n * det['coord']) + eas.D) / eas.light_speed
+            if det['respond']:
+                det['time'] = (sum(eas.n * det['coord']) + eas.D) / light_speed
                 det['time'] += randomize_time()
                 temp.append(det['time'])
             else:
@@ -165,6 +173,11 @@ class Station:
 
         self.rndm_time = min(temp)
 
-        # Дополнительный крадёт время у соседа
-        self.add_det['time'] = self.detectors[self.num - 1]['time']
+        # Смоделируем время срабатывания доп. ФЭУ
+        if self.add_det['respond']:
+            self.add_det['time'] = (sum(eas.n * self.add_det['coord']) + eas.D) / light_speed
+            self.add_det['time'] += randomize_time()
+        else:
+            self.add_det['time'] = None
+
         return self.respond

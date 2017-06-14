@@ -1,13 +1,10 @@
-from math import pow, sqrt, pi, gamma
+from math import pow, sqrt
 from numpy import array
 from numpy.random import poisson, normal
 from numpy.linalg import det
 
 from core.station import Station
-from core.utils import get_distance, nkg
-
-light_speed = 0.299792458
-m_radius = 71  # Радиус Мольера [м]
+from core.utils import get_distance, nkg, light_speed
 
 
 class Cluster:
@@ -28,23 +25,23 @@ class Cluster:
         self.stations = (
             # Создаём станции кластера, задаём им координаты и номера
             Station(1,
-                    [self.center[0] + self.width / 2,
-                     self.center[1] - self.length / 2,
+                    [self.center[0] - self.width / 2,
+                     self.center[1] + self.length / 2,
                      self.center[2]]),
 
             Station(2,
-                    [self.center[0] - self.width / 2,
-                     self.center[1] - self.length / 2,
+                    [self.center[0] + self.width / 2,
+                     self.center[1] + self.length / 2,
                      self.center[2]]),
 
             Station(3,
                     [self.center[0] - self.width / 2,
-                     self.center[1] + self.length / 2,
+                     self.center[1] - self.length / 2,
                      self.center[2]]),
 
             Station(4,
                     [self.center[0] + self.width / 2,
-                     self.center[1] + self.length / 2,
+                     self.center[1] - self.length / 2,
                      self.center[2]]),
         )
 

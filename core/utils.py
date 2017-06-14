@@ -1,14 +1,16 @@
 # Вспомогательные функции
+
 # import matplotlib.pyplot as plt
 
 from math import pi, pow, sqrt, exp, cos, sin, gamma, log10
-from numpy import array, cross, size
+from numpy import array, cross
 from numpy.linalg import norm
 from numpy.random import normal, poisson
 import random as rn
 
 g_ratio = (1 + 5 ** 0.5) / 2  # Золотое сечение
 m_radius = 71  # Радиус Мольера [м]
+light_speed = 0.299792458  # Скорость света
 
 time_dist_func = []
 tau = 5 / sqrt(3)
@@ -93,9 +95,6 @@ def get_power():
     while power < 10**4 or power > 10**9:
         power = a * pow((1 - gm), 1 / (1 - beta))
 
-    # if power < 10**4 or power > 10**9:
-    #     return get_power()
-
     return power
 
 
@@ -103,23 +102,20 @@ def get_age(power, theta):
     """Генератор значений возраста"""
     theta_rad = theta * (pi/180)  # Перевели тета в радианы
 
-    n_1 = 10**8
-    s_1 = 0.8
+    n_1 = 10**7
+    s_1 = 0.5
 
     n_2 = 10**5
-    s_2 = 1.4
+    s_2 = 1.35
 
     b = (s_2 - (n_2 * s_1)/n_1) / (1 - n_2/n_1)
     k = (s_1 - b)/n_1
 
     age = k * power + b
-    age = normal(age + 0.3 * sin(theta_rad), 0.10)
+    age = normal(age + 0.3 * sin(theta_rad), 0.1)
 
     while age < 0.5 or age > 2.0:
-        age = normal(age + 0.3 * sin(theta_rad), 0.10)
-
-    # if age < 0.5 or age > 2.0:
-    #     return get_age(power, theta)
+        age = normal(age + 0.3 * sin(theta_rad), 0.1)
 
     return age
 
@@ -160,7 +156,8 @@ def poisson_gauss_gen(n):
 
 # d_age = []
 # d_power = []
-# for i in range(100000):
+# for i in range(1000):
+#     print(i)
 #     d_power.append(log10(get_power()))
 #     d_age.append(get_age(get_power(), get_theta()))
 #

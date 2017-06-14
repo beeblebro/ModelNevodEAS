@@ -19,14 +19,14 @@ class Facility:
             self.clusters = [
                 Cluster([-28.4, -7.8, -7.0], 13.3, 12.4),
                 Cluster([-28.4, 23.8, -7.0], 13.3, 12.4),
-                Cluster([0, 0, 0], 25.1, 13.5),
+                Cluster([0.0, 0.0, 0.0], 25.1, 13.5),
                 Cluster([33.3, 7.8, -14.5]),
-                Cluster([35, 46, -14.5]),
-                Cluster([-2, -47, -14.5]),
-                Cluster([-18, 62, -14.5]),
-                Cluster([60, -2, -2]),
-                Cluster([60, 26, -2]),
-                Cluster([60, 58, -8]),
+                Cluster([35.0, 46.0, -14.5]),
+                Cluster([-2.0, -47.0, -14.5]),
+                Cluster([-18.0, 62.0, -14.5]),
+                Cluster([60.0, -2.0, -2.0]),
+                Cluster([60.0, 26.0, -2.0]),
+                Cluster([60.0, 58.0, -8.0]),
             ]
         elif geometry == 'flat':
             self.clusters = [
@@ -41,26 +41,27 @@ class Facility:
                 Cluster([60.0, -60.0, 0.0], 20.0, 20.0),
             ]
 
-        self.num = num  # Номер установки, если создали много штука
-
-        self.grid_steps = 5  # Число шагов по сетке
-        self.power_age_steps = 5  # Число шагов поиска мощности и возраста
+        self.num = num  # Номер установки, если создали много штук
+        self.clust_ok = None  # Число сработавших кластеров
 
         self.average_n = None  # Средний из восстановленных векторов
         self.rec_n = None  # Восстановленный вектор по установке
+
         self.rec_power = None  # Восстановленная мощность
         self.rec_age = None  # Восстановленный возраст
         self.rec_x = None  # Восстановленне координаты прихода ШАЛ
         self.rec_y = None
-        self.rec_theta = None
+        self.rec_theta = None  # Восстановленные тета и фи
         self.rec_phi = None
-        self.clust_ok = None  # Число сработавших кластеров
+
         self.exp_n = []  # Экспериментальное число частиц
         self.sigma_n = []  # Сигма в функционале
+
         self.average_x0 = None  # Средневзвешенные x0 и y0
         self.average_y0 = None
 
-        self.real_n = None  # Настоящий вектор ШАЛ
+        self.grid_steps = 5  # Число шагов по сетке
+        self.power_age_steps = 5  # Число шагов поиска мощности и возраста
 
     def reset(self):
         """Сбрасываем все кластеры"""
@@ -77,23 +78,20 @@ class Facility:
         self.rec_power = None
         self.rec_theta = None
         self.rec_phi = None
-        self.real_n = None
 
     def get_eas(self, eas):
         """Получить данные ШАЛ без запуска"""
-        self.real_n = eas.n
         for cluster in self.clusters:
             cluster.get_eas(eas)
 
     def start(self, eas):
-        """Запуск кластеров"""
-        self.real_n = eas.n
-        cl_ok = 0
+        """Запуск установки"""
+        self.clust_ok = 0
         for cluster in self.clusters:
             if cluster.start(eas):
-                cl_ok += 1
+                self.clust_ok += 1
 
-        if cl_ok == 0:
+        if self.clust_ok == 0:
             return False
         else:
             return True
@@ -335,26 +333,6 @@ class Facility:
         else:
             return False
 
-    def rec_params_bfgs(self):
-
-        _x = self.average_x0
-        _y = self.average_y0
-        _power = 10 ** 5
-        _age = 1.3
-        _args = array([_x, _y, _power, _age])
-
-        res = minimize(self.func, _args, method='BFGS',
-                       options={'maxiter': None, 'disp': False, 'gtol': 1e-09})
-
-        if res.success:
-            self.rec_x = res.x[0]
-            self.rec_y = res.x[1]
-            self.rec_power = res.x[2]
-            self.rec_age = res.x[3]
-            return True
-        else:
-            return False
-
     def rec_params_lbfgsb(self):
 
         _x = self.average_x0
@@ -591,33 +569,3 @@ class Facility:
 
                 file.write(str(age) + '\t' + str(func) + '\n')
 
-    def check_bnds(self, bnds):
-        """Проверяет восстановленные параметры на попадание в диапазон границ.
-            Иначе присваивает им граничные значения"""
-        # x0
-        if self.rec_x < bnds[0][0]:
-            self.rec_x = bnds[0][0]
-
-        if self.rec_x > bnds[0][1]:
-            self.rec_x = bnds[0][1]
-
-        # y0
-        if self.rec_y < bnds[1][0]:
-            self.rec_x = bnds[1][0]
-
-        if self.rec_x > bnds[1][1]:
-            self.rec_x = bnds[1][1]
-
-        # Мощность
-        if self.rec_power < bnds[2][0]:
-            self.rec_x = bnds[2][0]
-
-        if self.rec_power > bnds[2][1]:
-            self.rec_x = bnds[2][1]
-
-        # Возраст
-        if self.rec_age < bnds[3][0]:
-            self.rec_x = bnds[3][0]
-
-        if self.rec_age > bnds[3][1]:
-            self.rec_x = bnds[3][1]

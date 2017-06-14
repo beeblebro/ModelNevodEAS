@@ -5,6 +5,7 @@ import random as rn
 from core import Facility
 from core import Eas
 from core import get_age, get_theta, get_power, modified_area
+from core import get_ca_amplitude
 
 
 def create_det():
@@ -21,6 +22,7 @@ def create_station(dets):
         'x': None,
         'y': None,
         'z': None,
+        'ca_ampl': None,
         'ampl': None,
         'time': None,
         'add_det_ampl': None,
@@ -81,7 +83,7 @@ def save_to_bin(file, event_json):
     # Счётчик байтов
     b_count = 0
     # Записали номер события
-    b_count += file.write(struct.pack('L', event_json['num']))
+    b_count += file.write(struct.pack('q', event_json['num']))
     # Записали параметры ШАЛ
     b_count += file.write(struct.pack('dddddd',
                                       event_json['params']['theta'],
@@ -91,7 +93,7 @@ def save_to_bin(file, event_json):
                                       event_json['params']['power'],
                                       event_json['params']['age']))
 
-    # Меняем None на -1.0 для амплитуды и 0.0 для времени, чтобы записать в бинарник
+    # Меняем None на -1.0 для времени, чтобы записать в бинарник
     for cl in event_json['clusters']:
 
         for st in cl['st']:
@@ -99,11 +101,19 @@ def save_to_bin(file, event_json):
             b_count += file.write(struct.pack('ddd', st['x'], st['y'],
                                   st['z']))
 
+            b_count += file.write(struct.pack('d', st['ca_ampl']))
             b_count += file.write(struct.pack('d', st['ampl']))
             if st['time'] is None:
                 b_count += file.write(struct.pack('d', -1.0))
             else:
                 b_count += file.write(struct.pack('d', st['time']))
+
+            for det in st['det']:
+                b_count += file.write(struct.pack('d', det['ampl']))
+                if det['time'] is None:
+                    b_count += file.write(struct.pack('d', -1.0))
+                else:
+                    b_count += file.write(struct.pack('d', det['time']))
 
             b_count += file.write(struct.pack('d', st['add_det_ampl']))
             if st['add_det_time'] is None:
@@ -111,14 +121,7 @@ def save_to_bin(file, event_json):
             else:
                 b_count += file.write(struct.pack('d', st['add_det_time']))
 
-            for det in st['det']:
-
-                b_count += file.write(struct.pack('d', det['ampl']))
-                if det['time'] is None:
-                    b_count += file.write(struct.pack('d', -1.0))
-                else:
-                    b_count += file.write(struct.pack('d', det['time']))
-
+    # print(b_count)
     return b_count
 
 
@@ -128,7 +131,9 @@ def create_event(clusters, count_event, params):
     for i in range(len(clusters)):
         stations = []
         for j in range(4):
-            dets = [create_det()] * 4
+            dets = []
+            for k in range(4):
+                dets.append(create_det())
             stations.append(create_station(dets))
         clusters_json.append(create_cluster(stations))
 
@@ -139,6 +144,7 @@ def create_event(clusters, count_event, params):
             clusters_json[cl_n]['st'][st_n]['y'] = st.coord[1]
             clusters_json[cl_n]['st'][st_n]['z'] = st.coord[2]
 
+            clusters_json[cl_n]['st'][st_n]['ca_ampl'] = get_ca_amplitude()
             clusters_json[cl_n]['st'][st_n]['ampl'] = st.amplitude
             clusters_json[cl_n]['st'][st_n]['time'] = st.rndm_time
 
