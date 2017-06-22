@@ -59,14 +59,7 @@ def run_facility(nevod_eas, params):
     """Запускаем установку и создаём ШАЛ"""
     NevodEAS = nevod_eas
     # Создали ШАЛ
-    eas = Eas(
-        params['theta'],
-        params['phi'],
-        params['x0'],
-        params['y0'],
-        params['power'],
-        params['age']
-    )
+    eas = Eas(params)
     # Передаём ШАЛ и запускаем установку
     NevodEAS.start(eas)
     return NevodEAS.clusters
@@ -171,11 +164,11 @@ if __name__ == '__main__':
     count_event = 10000
 
     # Файлы для установки НЕВОД
-    file_bin = open('data/model_10k.bin', 'wb')
-    file_json = open('data/model_10k.jsonl', 'w')
+    file_bin = open('input_data/model_10k.bin', 'wb')
+    file_json = open('input_data/model_10k.jsonl', 'w')
     # Файлы для плоской установки
-    file_json_flat = open('data/model_10k_flat.jsonl', 'w')
-    file_bin_flat = open('data/model_10k_flat.bin', 'wb')
+    file_json_flat = open('input_data/model_10k_flat.jsonl', 'w')
+    file_bin_flat = open('input_data/model_10k_flat.bin', 'wb')
 
     for event_number in range(count_event):
         params = create_params()

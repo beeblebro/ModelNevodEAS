@@ -1,8 +1,6 @@
 # Вспомогательные функции
 
-# import matplotlib.pyplot as plt
-
-from math import pi, pow, sqrt, exp, cos, sin, gamma, log10
+from math import pi, pow, sqrt, exp, cos, sin, gamma
 from numpy import array, cross
 from numpy.linalg import norm
 from numpy.random import normal, poisson
@@ -84,6 +82,11 @@ def get_theta():
             return kx11 * (180/pi)
 
 
+def get_phi():
+    """Получаем случайный азимутальный угол"""
+    return rn.uniform(0, 360)
+
+
 def get_power():
     """Получаем мощность методом обратных функций"""
     beta = 2.5  # Показатель степени
@@ -154,14 +157,15 @@ def poisson_gauss_gen(n):
     else:
         return round(normal(n, sqrt(n)))
 
-# d_age = []
-# d_power = []
-# for i in range(1000):
-#     print(i)
-#     d_power.append(log10(get_power()))
-#     d_age.append(get_age(get_power(), get_theta()))
-#
-# plt.hist(d_power, bins='auto')
-# plt.hist(d_age, bins='auto')
-#
-# plt.show()
+
+def check_effective_area(x, y):
+    """Проверяет, попадаю ли x,y в эффективную область"""
+    if y > -10:
+        if y < 60 and -20 < x < 50:
+            return True
+    elif y > -40:
+        if -10 < x < 5:
+            return True
+    else:
+        return False
+

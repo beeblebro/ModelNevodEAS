@@ -2,14 +2,21 @@ import random as rn
 from math import exp, log, e, pi
 from math import modf
 
+
+def get_ca_amplitude():
+    """Возвращает калибровочную амплитуду станции"""
+    return 13.5
+
 # Постоянная Эйлера-Маскерони
 euler_masch_const = 0.5772156649015328606
-xc = 13.5
+xc = get_ca_amplitude()
 wid = 4
 # Средняя амплитуда
 av_ampl = xc + wid * euler_masch_const
 # Дисперсия или квадрат сигма
 variance = (pi**2) * (wid**2) / 6
+
+det_threshold = xc / 8  # Порог срабатывания детектора
 
 
 def get_amplitude():
@@ -38,6 +45,9 @@ def get_amplitudes(p):
         # Добавим десятичную часть
         ampl += (get_amplitude() * modf(p)[0])
 
+        if ampl < det_threshold:
+            ampl = 0.0
+
         return ampl
 
 
@@ -50,7 +60,3 @@ def get_sqr_sigma():
     """Возвращает квадрат стандартной ошибки"""
     return variance
 
-
-def get_ca_amplitude():
-    """Возвращает калибровочную амплитуду станции"""
-    return 13.5

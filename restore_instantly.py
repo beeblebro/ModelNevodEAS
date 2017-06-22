@@ -1,30 +1,25 @@
 # Смоделировать и восстановить ШАЛ сразу же, без сохранения события
 from multiprocessing import Pool
 import csv
-import random as rn
 import time
 
-from core import Facility
-from core import Eas
-from core.utils import get_theta, get_power, get_age, modified_area
+from core import Facility, Eas
 
 
-def run(facility):
-    theta = get_theta()  # Тета
-    phi = rn.uniform(0, 360)  # и фи в градусах
-    x0, y0 = modified_area()
-    power = get_power()
-    age = get_age(power, theta)
-    params = [facility.num, theta, phi, x0, y0, power, age]
-    eas = Eas(theta, phi, x0, y0, power, age)
-    facility.start(eas)
-    facility.rec_direction()
-    facility.rec_particles()
-    result = facility.rec_params_diff_evo()
-    return params, result
+def main_process(event_num):
+    eas = Eas()
+    params = eas.get_params_list()
+    Nevod = Facility()
+    Nevod.start(eas)
+    Nevod.rec_direction()
+    Nevod.rec_particles()
+    result = Nevod.rec_params_diff_evo()
+    # print(event_num)
+    return [event_num] + params, [event_num] + result
 
 
 def record(res, w_p, w_r):
+    """Запись заданных и восстановленных параметров"""
     for evt in res:
         w_p.writerow(evt[0])
         w_r.writerow(evt[1])
@@ -32,14 +27,19 @@ def record(res, w_p, w_r):
 
 if __name__ == '__main__':
     start_time = time.time()
-    f_params = open('params.txt', 'w')
-    w_params = csv.writer(f_params, dialect="excel-tab")
-    f_restore = open('restore.txt', 'w')
-    w_restore = csv.writer(f_restore, dialect="excel-tab")
-    zoo = [Facility(geometry='nevod', num=i) for i in range(10)]
+    # Число моделируемых событий
+    event_num = 20
+    # Файлы для записи
+    params_file = open('output_data/params.txt', 'w')
+    params_writer = csv.writer(params_file, dialect="excel-tab")
+    restore_file = open('output_data/restore.txt', 'w')
+    restore_writer = csv.writer(restore_file, dialect="excel-tab")
+
+    zoo = [i for i in range(event_num)]
     p = Pool(8)
-    res = p.map(run, zoo)
-    record(res, w_params, w_restore)
-    f_params.close()
-    f_restore.close()
+    res = p.map(main_process, zoo)
+    # Запись результатов
+    record(res, params_writer, restore_writer)
+    params_file.close()
+    restore_file.close()
     print("--- %s seconds ---" % (time.time() - start_time))

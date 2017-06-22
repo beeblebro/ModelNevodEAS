@@ -1,6 +1,6 @@
 from scipy.optimize import minimize, basinhopping, differential_evolution
 from numpy import array, arctan2, degrees
-from numpy.linalg import det
+from numpy.linalg import det, norm
 from math import sqrt, acos
 
 from core.cluster import Cluster
@@ -42,10 +42,14 @@ class Facility:
             ]
 
         self.num = num  # Номер установки, если создали много штук
+        self.eas = None  # ШАЛ, упавший на данную установку
         self.clust_ok = None  # Число сработавших кластеров
 
         self.average_n = None  # Средний из восстановленных векторов
         self.rec_n = None  # Восстановленный вектор по установке
+
+        self.psi = None  # Угол отклонения среднего
+        self.sigma_psi = None  # Среднеквадратичный угол отклонения
 
         self.rec_power = None  # Восстановленная мощность
         self.rec_age = None  # Восстановленный возраст
@@ -67,25 +71,38 @@ class Facility:
         """Сбрасываем все кластеры"""
         for cluster in self.clusters:
             cluster.reset()
+
+        self.eas = None
+        self.clust_ok = None
+
         self.average_n = None
         self.rec_n = None
-        self.exp_n = []
-        self.sigma_n = []
-        self.clust_ok = None
-        self.average_x0 = None
-        self.average_y0 = None
-        self.rec_age = None
+
+        self.psi = None
+        self.sigma_psi = None
+
         self.rec_power = None
+        self.rec_age = None
+        self.rec_x = None
+        self.rec_y = None
         self.rec_theta = None
         self.rec_phi = None
 
+        self.exp_n = []
+        self.sigma_n = []
+
+        self.average_x0 = None
+        self.average_y0 = None
+
     def get_eas(self, eas):
         """Получить данные ШАЛ без запуска"""
+        self.eas = eas
         for cluster in self.clusters:
             cluster.get_eas(eas)
 
     def start(self, eas):
         """Запуск установки"""
+        self.eas = eas
         self.clust_ok = 0
         for cluster in self.clusters:
             if cluster.start(eas):
@@ -96,9 +113,10 @@ class Facility:
         else:
             return True
 
-    def set_facility_state(self, evt):
+    def set_facility_state(self, evt, eas=None):
         """Устанавить состояние установки в соответствии с
         прочитанным событием"""
+        self.eas = eas
         self.clust_ok = 0
         for cl_n, cl in enumerate(self.clusters):
             if cl.set_cluster_state(evt['clusters'][cl_n]):
@@ -112,28 +130,39 @@ class Facility:
     def rec_direction(self):
         """Восстановление направления ШАЛ"""
         cl_ok = 0  # Считаем кластеры, которые смогли восстановить направление
-        self.average_n = [0, 0, 0]
+        self.average_n = array([0.0, 0.0, 0.0])
+        average_sqr_n = 0.0  # Средний квадрат
         for cl in self.clusters:
             if cl.respond:
                 if cl.rec_direction():
                     self.average_n += cl.rec_n
+                    average_sqr_n += norm(cl.rec_n**2, ord=1)
                     cl_ok += 1
 
-        self.average_n = array(self.average_n)
         if cl_ok == 0:
             print("ERROR: Не воссталовилось направление")
             return False
         else:
             self.average_n /= cl_ok
+            average_sqr_n /= cl_ok
 
+            # Расчитаем зенитный и азимутальный углы
             self.rec_theta = acos(abs(self.average_n[2]))
             self.rec_phi = arctan2(self.average_n[1], self.average_n[0])
             if self.rec_phi < 0:
                 self.rec_phi += 2 * pi
-
             # Переведём в градусы
             self.rec_theta = degrees(self.rec_theta)
             self.rec_phi = degrees(self.rec_phi)
+
+            # Вычислим угол отклонения среднего:
+            delta = norm(self.eas.n - self.average_n, ord=2)
+            self.psi = degrees(acos(1 - delta**2 / 2))
+
+            # Вычислим среднеквадратичный угол отклонения
+            sigma_psi = sqrt(average_sqr_n - norm(self.average_n**2, ord=1))
+            self.sigma_psi = degrees(acos(1 - sigma_psi**2 / 2))
+
             return True
 
     def rec_particles(self):
@@ -172,8 +201,8 @@ class Facility:
         """Сделаем времена относительными по установке"""
 
         # Записали сюда все времена сработавших станций по установке
-        temp = [st.rndm_time for cl in self.clusters for st in cl.stations if st.respond]
-        min_t = min(temp)
+        min_t = min([st.rndm_time for cl in self.clusters for st in cl.stations
+                     if st.respond])
 
         for cl in self.clusters:
             for st in cl.stations:
@@ -242,39 +271,32 @@ class Facility:
             # Если вектор восстановился успешно
             c = sqrt(1 - pow(a, 2) - pow(b, 2))
             self.rec_n = array([a, b, c])
+
+            # Расчитаем зенитный и азимутальный углы
+            self.rec_theta = acos(abs(self.rec_n[2]))
+            self.rec_phi = arctan2(self.rec_n[1], self.rec_n[0])
+            if self.rec_phi < 0:
+                self.rec_phi += 2 * pi
+            # Переведём в градусы
+            self.rec_theta = degrees(self.rec_theta)
+            self.rec_phi = degrees(self.rec_phi)
+
+            # Вычислим угол отклонения среднего:
+            delta = norm(self.eas.n - self.rec_n, ord=2)
+            self.psi = degrees(acos(1 - delta**2 / 2))
+
             return True
         else:
             print("ERROR: Не удалось восстановить направление")
             return False
 
-    def rec_params_nelder_mead(self):
-
-        _x = self.average_x0
-        _y = self.average_y0
-        _power = 10 ** 5
-        _age = 1.3
-        _args = array([_x, _y, _power, _age])
-
-        res = minimize(self.func, _args, method='Nelder-Mead',
-                       options={'maxiter': 1e6, 'maxfev': 1e6, 'disp': True})
-
-        if res.success:
-            self.rec_x = res.x[0]
-            self.rec_y = res.x[1]
-            self.rec_power = res.x[2]
-            self.rec_age = res.x[3]
-            return True
-        else:
-            return False
-
     def rec_params_powell(self):
-
+        """Восстановить параметры ШАЛ методом Пауэлла"""
         _x = self.average_x0
         _y = self.average_y0
         _power = 10 ** 5
         _age = 1.5
         _args = array([_x, _y, _power, _age])
-        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
 
         res = minimize(self.func, _args, method='Powell',
                        options={'maxiter': 1e6, 'maxfev': 1e6, 'disp': True,
@@ -285,37 +307,12 @@ class Facility:
             self.rec_y = res.x[1]
             self.rec_power = res.x[2]
             self.rec_age = res.x[3]
-            # self.check_bnds(_bnds)
             return True
         else:
             return False
 
-    def rec_params_bashinhopping(self):
-
-        _x = self.average_x0
-        _y = self.average_y0
-        _power = 10 ** 5
-        _age = 1.3
-        _args = array([_x, _y, _power, _age])
-        _bnds = ((-50, 50), (-50, 50), (10**5, 10**9), (0.7, 2.0))
-        minimizer_kwargs = {"method": "Powell"}
-
-        res = basinhopping(self.func, _args, disp=False, niter=200,
-                           minimizer_kwargs=minimizer_kwargs)
-
-        self.rec_x = res.x[0]
-        self.rec_y = res.x[1]
-        self.rec_power = res.x[2]
-        self.rec_age = res.x[3]
-        return True
-
     def rec_params_diff_evo(self):
         """Восстановление параметров ШАЛ методом дифференциальной эволюции"""
-        # _x = self.average_x0
-        # _y = self.average_y0
-        # _power = 10 ** 5
-        # _age = 1.3
-        # _args = array([_x, _y, _power, _age])
         _bnds = ((-80, 120), (-100, 120), (10**5, 10**8), (0.5, 2.0))
 
         res = differential_evolution(self.func, _bnds, maxiter=2000, disp=False,

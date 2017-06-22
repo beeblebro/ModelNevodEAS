@@ -6,6 +6,8 @@ from math import sqrt
 h_side = 0.8  # Половина стороны станции [м]
 side = 1.6  # Длина стороны станции [м]
 det_area = 0.64  # Площадь детектора [м2]
+det_threshold = get_ca_amplitude() / 8  # Порог срабатывания детектора
+st_threshold = get_ca_amplitude() / 2  # Порог срабатывания станции
 
 
 class Station:
@@ -111,16 +113,18 @@ class Station:
         self.amplitude = evt_station['ampl']
         self.rndm_time = evt_station['time']
 
-        if self.amplitude > 0 and self.rndm_time is not None:
+        if self.amplitude > st_threshold and self.rndm_time is not None:
             self.respond = True
         else:
             self.respond = False
+            self.amplitude = 0.0
+            self.rndm_time = None
 
         return self.respond
 
     def model_ampl(self, eas):
         """Моделирование амплитуд в счётчиках станций"""
-        _enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
+        enabled_gen = True  # Включить/выключить генераторы Пуассона и Гаусса
         self.amplitude = 0.0
         self.sigma_particles = 0
 
@@ -128,7 +132,7 @@ class Station:
             dist = get_distance(det['coord'], eas.n, eas.x0, eas.y0)
             temp = det_area * abs(eas.n[2]) * nkg(dist, eas.power, eas.age)
 
-            if _enabled_gen:
+            if enabled_gen:
                 p = poisson_gauss_gen(temp)
             else:
                 p = temp
@@ -136,9 +140,11 @@ class Station:
             det['particles'] = p
             det['ampl'] = get_amplitudes(p)
 
-            if det['ampl'] == 0.0:
+            if det['ampl'] < det_threshold:
+                # Порог не превышен - детектор не сработал
                 det['respond'] = False
             else:
+                # Детектор сработал
                 det['respond'] = True
 
                 # Накапливаем сигму по частицам и амплитуду станции
@@ -164,6 +170,7 @@ class Station:
         """Моделирует времена срабатывания станций"""
         temp = []
         for det in self.detectors:
+            # Моделируем времена срабатывания детекторов
             if det['respond']:
                 det['time'] = (sum(eas.n * det['coord']) + eas.D) / light_speed
                 det['time'] += randomize_time()

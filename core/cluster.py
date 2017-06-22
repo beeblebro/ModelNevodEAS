@@ -57,12 +57,13 @@ class Cluster:
         self.st_ok = 0
         for st in self.stations:
             # Запускаем станции
-            if st.start(self.eas):
+            if st.start(eas):
                 self.st_ok += 1
 
         if self.st_ok >= self.matches_required:
             # Кластер сработал (четырёхкратные совпадения)
             self.respond = True
+            self.time = min([st.rndm_time for st in self.stations if st.rndm_time])
         else:
             # Кластер не сработал
             self.respond = False
@@ -71,13 +72,13 @@ class Cluster:
 
     def reset(self):
         """Возвращаем кластер к исходному состоянию"""
+        for station in self.stations:
+            station.reset()
         self.respond = None
         self.eas = None
         self.time = None
         self.rec_n = None
         self.st_ok = None
-        for station in self.stations:
-            station.reset()
 
     def set_cluster_state(self, evt_cluster):
         """Устанавливаем состояние кластера  в соответствии
@@ -89,6 +90,7 @@ class Cluster:
 
         if self.st_ok == 4:
             self.respond = True
+            self.time = min([st.rndm_time for st in self.stations if st.rndm_time])
         else:
             self.respond = False
 
@@ -96,8 +98,7 @@ class Cluster:
 
     def make_times_relative(self):
         """Делает времена срабатывания станций относительными"""
-        temp = [st.rndm_time for st in self.stations if st.respond]
-        min_t = min(temp)
+        min_t = min([st.rndm_time for st in self.stations if st.respond])
         for st in self.stations:
             if st.respond:
                 st.rndm_time -= min_t
@@ -164,7 +165,7 @@ class Cluster:
             return True
         else:
             self.respond = False
-            print("ERROR: Не удалось восстановить направление")
+            # print("ERROR: Не удалось восстановить направление")
             return False
 
     def rec_particles(self, n, params):
