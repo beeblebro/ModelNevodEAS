@@ -3,9 +3,9 @@
 import csv
 from core import check_effective_area
 
-params_file = open("output_data/params.txt", 'r')
-restore_file = open("output_data/restore.txt", 'r')
-file = open("output_data/nice_restore.txt", 'w')
+params_file = open("../output_data/params.txt", 'r')
+restore_file = open("../output_data/restore.txt", 'r')
+file = open("../output_data/nice_restore.txt", 'w')
 
 params_data = []
 restore_data = []

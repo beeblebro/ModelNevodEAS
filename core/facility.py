@@ -1,4 +1,4 @@
-from scipy.optimize import minimize, basinhopping, differential_evolution
+from scipy.optimize import minimize, differential_evolution
 from numpy import array, arctan2, degrees
 from numpy.linalg import det, norm
 from math import sqrt, acos
@@ -331,7 +331,7 @@ class Facility:
             return False
 
     def rec_params_lbfgsb(self):
-
+        """Восстановление параметр методом LBFGS"""
         _x = self.average_x0
         _y = self.average_y0
         _power = 10 ** 5
@@ -354,7 +354,7 @@ class Facility:
             return False
 
     def rec_params_slsqp(self):
-
+        """Восстановление параметров методом SLSQP"""
         _x = self.average_x0
         _y = self.average_y0
         _power = 10 ** 5

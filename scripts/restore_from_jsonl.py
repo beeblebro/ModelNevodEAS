@@ -5,7 +5,7 @@ import time
 
 from core import Facility, Eas
 
-input_file = open('input_data/model_10k.jsonl', 'r')
+input_file = open('../input_data/model_10k.jsonl', 'r')
 
 
 def record_params(params_writer):
@@ -40,9 +40,9 @@ if __name__ == '__main__':
     # Число считываемых событий
     event_num = 20
     # Файлы для записи
-    params_file = open('output_data/params.txt', 'w')
+    params_file = open('../output_data/params.txt', 'w')
     params_writer = csv.writer(params_file, dialect="excel-tab")
-    restore_file = open('output_data/restore.txt', 'w')
+    restore_file = open('../output_data/restore.txt', 'w')
     restore_writer = csv.writer(restore_file, dialect="excel-tab")
 
     record_params(params_writer)

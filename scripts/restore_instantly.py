@@ -9,11 +9,11 @@ from core import Facility, Eas
 def main_process(event_num):
     eas = Eas()
     params = eas.get_params_list()
-    Nevod = Facility()
-    Nevod.start(eas)
-    Nevod.rec_direction()
-    Nevod.rec_particles()
-    result = Nevod.rec_params_diff_evo()
+    nevod = Facility()
+    nevod.start(eas)
+    nevod.rec_direction()
+    nevod.rec_particles()
+    result = nevod.rec_params_diff_evo()
     # print(event_num)
     return [event_num] + params, [event_num] + result
 
@@ -30,9 +30,9 @@ if __name__ == '__main__':
     # Число моделируемых событий
     event_num = 20
     # Файлы для записи
-    params_file = open('output_data/params.txt', 'w')
+    params_file = open('../output_data/params.txt', 'w')
     params_writer = csv.writer(params_file, dialect="excel-tab")
-    restore_file = open('output_data/restore.txt', 'w')
+    restore_file = open('../output_data/restore.txt', 'w')
     restore_writer = csv.writer(restore_file, dialect="excel-tab")
 
     zoo = [i for i in range(event_num)]
