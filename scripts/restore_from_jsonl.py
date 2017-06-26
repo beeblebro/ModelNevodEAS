@@ -12,7 +12,7 @@ def record_params(params_writer):
     """Запишем параметры ШАЛ"""
     for line in input_file:
         event = json.loads(line)
-        params_writer.writerow(list(event['params'].values()))
+        params_writer.writerow([event['num']] + list(event['params'].values()))
 
 
 def main_process(event_num):
@@ -20,8 +20,9 @@ def main_process(event_num):
     for line_num, line in enumerate(input_file):
         if line_num == event_num:
             event = json.loads(line)
+            Nevod.set_state(event)
             eas = Eas(event['params'])
-            Nevod.set_facility_state(event, eas)
+            Nevod.set_eas(eas)
             Nevod.rec_direction()
             Nevod.rec_particles()
             result = Nevod.rec_params_diff_evo()

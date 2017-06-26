@@ -13,9 +13,9 @@ light_speed = 0.299792458  # Скорость света [м/нс]
 class Facility:
     """Класс для представления установки НЕВОД-ШАЛ"""
 
-    def __init__(self, geometry='nevod', num=None):
+    def __init__(self, configuration='nevod', num=None):
 
-        if geometry == 'nevod':
+        if configuration == 'nevod':
             self.clusters = [
                 Cluster([-28.4, -7.8, -7.0], 13.3, 12.4),
                 Cluster([-28.4, 23.8, -7.0], 13.3, 12.4),
@@ -28,7 +28,7 @@ class Facility:
                 Cluster([60.0, 26.0, -2.0]),
                 Cluster([60.0, 58.0, -8.0]),
             ]
-        elif geometry == 'flat':
+        elif configuration == 'flat':
             self.clusters = [
                 Cluster([-60.0, 60.0, 0.0], 20.0, 20.0),
                 Cluster([0.0, 60.0, 0.0], 20.0, 20.0),
@@ -43,10 +43,10 @@ class Facility:
 
         self.num = num  # Номер установки, если создали много штук
         self.eas = None  # ШАЛ, упавший на данную установку
-        self.clust_ok = None  # Число сработавших кластеров
+        self.num_of_trig_cl = None  # Число сработавших кластеров
 
-        self.average_n = None  # Средний из восстановленных векторов
-        self.rec_n = None  # Восстановленный вектор по установке
+        self.average_vector = None  # Средний из восстановленных векторов
+        self.rec_vector = None  # Восстановленный вектор по установке
 
         self.psi = None  # Угол отклонения среднего
         self.sigma_psi = None  # Среднеквадратичный угол отклонения
@@ -58,8 +58,8 @@ class Facility:
         self.rec_theta = None  # Восстановленные тета и фи
         self.rec_phi = None
 
-        self.exp_n = []  # Экспериментальное число частиц
-        self.sigma_n = []  # Сигма в функционале
+        self.exper_num_particles = []  # Экспериментальное число частиц
+        self.sigma_num_particles = []  # Сигма в функционале
 
         self.average_x0 = None  # Средневзвешенные x0 и y0
         self.average_y0 = None
@@ -73,10 +73,10 @@ class Facility:
             cluster.reset()
 
         self.eas = None
-        self.clust_ok = None
+        self.num_of_trig_cl = None
 
-        self.average_n = None
-        self.rec_n = None
+        self.average_vector = None
+        self.rec_vector = None
 
         self.psi = None
         self.sigma_psi = None
@@ -88,41 +88,41 @@ class Facility:
         self.rec_theta = None
         self.rec_phi = None
 
-        self.exp_n = []
-        self.sigma_n = []
+        self.exper_num_particles = []
+        self.sigma_num_particles = []
 
         self.average_x0 = None
         self.average_y0 = None
 
-    def get_eas(self, eas):
-        """Получить данные ШАЛ без запуска"""
+    def set_eas(self, eas):
+        """Передаём ШАЛ установке"""
         self.eas = eas
         for cluster in self.clusters:
-            cluster.get_eas(eas)
+            cluster.set_eas(eas)
 
     def start(self, eas):
         """Запуск установки"""
         self.eas = eas
-        self.clust_ok = 0
+        self.num_of_trig_cl = 0
         for cluster in self.clusters:
             if cluster.start(eas):
-                self.clust_ok += 1
+                self.num_of_trig_cl += 1
 
-        if self.clust_ok == 0:
+        if self.num_of_trig_cl == 0:
             return False
         else:
             return True
 
-    def set_facility_state(self, evt, eas=None):
+    def set_state(self, evt, eas=None):
         """Устанавить состояние установки в соответствии с
         прочитанным событием"""
         self.eas = eas
-        self.clust_ok = 0
+        self.num_of_trig_cl = 0
         for cl_n, cl in enumerate(self.clusters):
-            if cl.set_cluster_state(evt['clusters'][cl_n]):
-                self.clust_ok += 1
+            if cl.set_state(evt['clusters'][cl_n]):
+                self.num_of_trig_cl += 1
 
-        if self.clust_ok <= 0:
+        if self.num_of_trig_cl <= 0:
             return False
         else:
             return True
@@ -130,12 +130,12 @@ class Facility:
     def rec_direction(self):
         """Восстановление направления ШАЛ"""
         cl_ok = 0  # Считаем кластеры, которые смогли восстановить направление
-        self.average_n = array([0.0, 0.0, 0.0])
+        self.average_vector = array([0.0, 0.0, 0.0])
         average_sqr_n = 0.0  # Средний квадрат
         for cl in self.clusters:
             if cl.respond:
                 if cl.rec_direction():
-                    self.average_n += cl.rec_n
+                    self.average_vector += cl.rec_n
                     average_sqr_n += norm(cl.rec_n**2, ord=1)
                     cl_ok += 1
 
@@ -143,12 +143,12 @@ class Facility:
             print("ERROR: Не воссталовилось направление")
             return False
         else:
-            self.average_n /= cl_ok
+            self.average_vector /= cl_ok
             average_sqr_n /= cl_ok
 
             # Расчитаем зенитный и азимутальный углы
-            self.rec_theta = acos(abs(self.average_n[2]))
-            self.rec_phi = arctan2(self.average_n[1], self.average_n[0])
+            self.rec_theta = acos(abs(self.average_vector[2]))
+            self.rec_phi = arctan2(self.average_vector[1], self.average_vector[0])
             if self.rec_phi < 0:
                 self.rec_phi += 2 * pi
             # Переведём в градусы
@@ -156,11 +156,11 @@ class Facility:
             self.rec_phi = degrees(self.rec_phi)
 
             # Вычислим угол отклонения среднего:
-            delta = norm(self.eas.n - self.average_n, ord=2)
+            delta = norm(self.eas.vector - self.average_vector, ord=2)
             self.psi = degrees(acos(1 - delta**2 / 2))
 
             # Вычислим среднеквадратичный угол отклонения
-            sigma_psi = sqrt(average_sqr_n - norm(self.average_n**2, ord=1))
+            sigma_psi = sqrt(average_sqr_n - norm(self.average_vector ** 2, ord=1))
             self.sigma_psi = degrees(acos(1 - sigma_psi**2 / 2))
 
             return True
@@ -168,11 +168,11 @@ class Facility:
     def rec_particles(self):
         """Восстановление числа частиц в станциях, заполняем экспериментальное
         число частиц для функционала"""
-        if self.average_n is None or self.average_n[2] == 0:
+        if self.average_vector is None or self.average_vector[2] == 0:
             print("ERROR: Не восстановлились частицы")
             return False
 
-        fixed_av_ampl = get_av_amplitude() / abs(self.average_n[2])
+        fixed_av_ampl = get_av_amplitude() / abs(self.average_vector[2])
 
         particles_sum = 0
         self.average_x0 = 0
@@ -182,11 +182,11 @@ class Facility:
                 # Получаем экспериментальное число частиц в станции
                 st.particles = st.amplitude / fixed_av_ampl
 
-                self.exp_n.append(st.particles)
+                self.exper_num_particles.append(st.particles)
                 st.sigma_particles = sqrt(st.particles * get_sqr_sigma())
                 if st.sigma_particles == 0:
                     st.sigma_particles = 1.3
-                self.sigma_n.append(st.sigma_particles)
+                self.sigma_num_particles.append(st.sigma_particles)
 
                 particles_sum += st.particles
                 self.average_x0 += st.coord[0] * st.particles
@@ -197,7 +197,7 @@ class Facility:
 
         return True
 
-    def make_times_relative(self):
+    def mk_times_relative(self):
         """Сделаем времена относительными по установке"""
 
         # Записали сюда все времена сработавших станций по установке
@@ -215,7 +215,7 @@ class Facility:
         """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
 
         # Изменим времена срабатывания станций на относительные
-        self.make_times_relative()
+        self.mk_times_relative()
 
         sum0 = 0
         sum_x = 0
@@ -270,11 +270,11 @@ class Facility:
         if (pow(a, 2) + pow(b, 2)) <= 1:
             # Если вектор восстановился успешно
             c = sqrt(1 - pow(a, 2) - pow(b, 2))
-            self.rec_n = array([a, b, c])
+            self.rec_vector = array([a, b, c])
 
             # Расчитаем зенитный и азимутальный углы
-            self.rec_theta = acos(abs(self.rec_n[2]))
-            self.rec_phi = arctan2(self.rec_n[1], self.rec_n[0])
+            self.rec_theta = acos(abs(self.rec_vector[2]))
+            self.rec_phi = arctan2(self.rec_vector[1], self.rec_vector[0])
             if self.rec_phi < 0:
                 self.rec_phi += 2 * pi
             # Переведём в градусы
@@ -282,7 +282,7 @@ class Facility:
             self.rec_phi = degrees(self.rec_phi)
 
             # Вычислим угол отклонения среднего:
-            delta = norm(self.eas.n - self.rec_n, ord=2)
+            delta = norm(self.eas.n - self.rec_vector, ord=2)
             self.psi = degrees(acos(1 - delta**2 / 2))
 
             return True
@@ -527,42 +527,21 @@ class Facility:
         """Подсчёт теоретическиого числа частиц для каждой станции, возвращает
         генератор"""
         for cluster in self.clusters:
-            cluster.rec_particles(self.average_n, params)
+            cluster.rec_particles(self.average_vector, params)
             for station in cluster.stations:
                 yield station.rec_particles
 
     def func(self, params):
         """Функционал одной функцией от параметров ШАЛ в виде ndarray или list"""
-        theo_n = list(self.count_theo(params))
+        theo_num_particles = list(self.count_theo(params))
 
         f = 0
-        if len(self.sigma_n) == len(theo_n) == len(self.exp_n):
-            for n_e, n_t, sigma in zip(self.exp_n, theo_n, self.sigma_n):
+        if len(self.sigma_num_particles) == len(theo_num_particles) == len(self.exper_num_particles):
+            for n_e, n_t, sigma in zip(self.exper_num_particles, theo_num_particles, self.sigma_num_particles):
                 f += ((n_e - n_t) ** 2) / (sigma ** 2)
         else:
             print("ERROR: Не совпадает число параметров в функционале")
             return False
         return f
 
-    def draw_func_power(self, x, y, age):
-        """Функция для получения зависимость функционала от мощности в данной точке при
-        данном возрасте"""
-        power = 10**4  # Минимальное значение мощности
-        with open('data/power_age_func/func_power.txt', 'w') as file:
-            for i in range(10000):
-                power += 1000
-                func = self.func([x, y, power, age])
-
-                file.write(str(power) + '\t' + str(func) + '\n')
-
-    def draw_func_age(self, x, y, power):
-        """Функция для получения зависимость функционала от возраста в данной точке при
-        данной мощности"""
-        age = 1.2
-        with open('data/power_age_func/func_age.txt', 'w') as file:
-            for i in range(10000):
-                age += 0.001
-                func = self.func([x, y, power, age])
-
-                file.write(str(age) + '\t' + str(func) + '\n')
 

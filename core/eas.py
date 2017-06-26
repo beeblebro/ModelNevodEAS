@@ -1,7 +1,7 @@
 from math import sin, cos
 from numpy import array, radians
 
-from core.utils import get_theta, get_power, get_age, modified_area, get_phi
+from core.utils import gen_theta, gen_power, gen_age, gen_x_y, gen_phi
 
 
 class Eas:
@@ -14,16 +14,16 @@ class Eas:
             # Разыграем параметры ШАЛ, если они не были переданы
 
             # Углы наклона оси в градусах
-            self.theta_deg = get_theta()
-            self.phi_deg = get_phi()
+            self.theta_deg = gen_theta()
+            self.phi_deg = gen_phi()
 
             # Углы наклона оси в радианах
             self.theta = radians(self.theta_deg)
             self.phi = radians(self.phi_deg)
             # Параметры ШАЛ
-            self.x0, self.y0 = modified_area()
-            self.power = get_power()
-            self.age = get_age(self.power, self.theta)
+            self.x0, self.y0 = gen_x_y()
+            self.power = gen_power()
+            self.age = gen_age(self.power, self.theta)
         else:
             # Передали параметры в виде словаря
 
@@ -41,10 +41,10 @@ class Eas:
         self.m_rad = 71  # Радиус Мольера
         self.D = 1000  # Параметр D плоскости ливня
         self.tau = 5 / (3**0.5)  # Параметр тау в формуле временного профиля ШАЛ
-        # n - истинный вектор прихода ШАЛ. т.е. нормаль к плоскости ливня
-        self.n = array([sin(self.theta) * cos(self.phi),
-                        sin(self.theta) * sin(self.phi),
-                        cos(self.theta)])
+        # vector - истинный вектор прихода ШАЛ. т.е. нормаль к плоскости ливня
+        self.vector = array([sin(self.theta) * cos(self.phi),
+                             sin(self.theta) * sin(self.phi),
+                             cos(self.theta)])
 
     def get_params_list(self):
         """Получить параметры ШАЛ списком"""

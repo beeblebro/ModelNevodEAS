@@ -19,7 +19,7 @@ class Cluster:
         self.respond = None  # Отклик кластера
         self.rec_n = None  # Координаты восстановленного вектора
         self.time = None  # Время срабатывания кластера [нс]
-        self.st_ok = None  # Число сработавших станций
+        self.num_of_trig_st = None  # Число сработавших станций
         self.matches_required = 4  # Крастность совпадений
 
         self.stations = (
@@ -45,8 +45,8 @@ class Cluster:
                      self.center[2]]),
         )
 
-    def get_eas(self, eas):
-        """Получаем ШАЛ без запуска"""
+    def set_eas(self, eas):
+        """Передать ШАЛ кластеру"""
         self.eas = eas
 
     def start(self, eas):
@@ -54,16 +54,16 @@ class Cluster:
         # Получаем ШАЛ
         self.eas = eas
         # Счётчик сработавших станций
-        self.st_ok = 0
+        self.num_of_trig_st = 0
         for st in self.stations:
             # Запускаем станции
             if st.start(eas):
-                self.st_ok += 1
+                self.num_of_trig_st += 1
 
-        if self.st_ok >= self.matches_required:
+        if self.num_of_trig_st >= self.matches_required:
             # Кластер сработал (четырёхкратные совпадения)
             self.respond = True
-            self.time = min([st.rndm_time for st in self.stations if st.rndm_time])
+            self.time = min([st.time for st in self.stations if st.time])
         else:
             # Кластер не сработал
             self.respond = False
@@ -78,36 +78,36 @@ class Cluster:
         self.eas = None
         self.time = None
         self.rec_n = None
-        self.st_ok = None
+        self.num_of_trig_st = None
 
-    def set_cluster_state(self, evt_cluster):
+    def set_state(self, evt_cluster):
         """Устанавливаем состояние кластера  в соответствии
         с прочитанным событием"""
-        self.st_ok = 0
+        self.num_of_trig_st = 0
         for st_n, st in enumerate(self.stations):
-            if st.set_station_state(evt_cluster['st'][st_n]):
-                self.st_ok += 1
+            if st.set_state(evt_cluster['st'][st_n]):
+                self.num_of_trig_st += 1
 
-        if self.st_ok == 4:
+        if self.num_of_trig_st == 4:
             self.respond = True
-            self.time = min([st.rndm_time for st in self.stations if st.rndm_time])
+            self.time = min([st.time for st in self.stations if st.time])
         else:
             self.respond = False
 
         return self.respond
 
-    def make_times_relative(self):
+    def mk_times_relative(self):
         """Делает времена срабатывания станций относительными"""
-        min_t = min([st.rndm_time for st in self.stations if st.respond])
+        min_t = min([st.time for st in self.stations if st.respond])
         for st in self.stations:
             if st.respond:
-                st.rndm_time -= min_t
+                st.time -= min_t
 
     def rec_direction(self):
         """Восстанавливает вектор прихода ШАЛ методом наименьших квадратов"""
 
         # Изменим времена срабатывания станций на относительные
-        self.make_times_relative()
+        self.mk_times_relative()
 
         sum0 = 0
         sum_x = 0
@@ -123,14 +123,14 @@ class Cluster:
             sqr_sigma_t = pow(st.sigma_t, 2)
 
             sum0 += 1 / sqr_sigma_t
-            sum_t += st.rndm_time / sqr_sigma_t
+            sum_t += st.time / sqr_sigma_t
             sum_x += st.coord[0] / sqr_sigma_t
             sum_y += st.coord[1] / sqr_sigma_t
             sum_xx += pow(st.coord[0], 2) / sqr_sigma_t
             sum_yy += pow(st.coord[1], 2) / sqr_sigma_t
             sum_xy += (st.coord[0] * st.coord[1]) / sqr_sigma_t
-            sum_tx += (st.rndm_time * st.coord[0]) / sqr_sigma_t
-            sum_ty += (st.rndm_time * st.coord[1]) / sqr_sigma_t
+            sum_tx += (st.time * st.coord[0]) / sqr_sigma_t
+            sum_ty += (st.time * st.coord[1]) / sqr_sigma_t
 
         sqr_light_speed = pow(light_speed, 2)
 
@@ -165,7 +165,6 @@ class Cluster:
             return True
         else:
             self.respond = False
-            # print("ERROR: Не удалось восстановить направление")
             return False
 
     def rec_particles(self, n, params):
@@ -177,10 +176,3 @@ class Cluster:
             station.rec_particles = station.area * n[2] * nkg(dist, params[2],
                                                               params[3])
 
-    @staticmethod
-    def _poisson_gauss_gen(n):
-        """Генератор Пуассона и Гаусса"""
-        if n <= 25:
-            return poisson(n)
-        else:
-            return round(normal(n, sqrt(n)))

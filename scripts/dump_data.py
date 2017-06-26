@@ -4,7 +4,7 @@ import random as rn
 
 from core import Facility
 from core import Eas
-from core import get_age, get_theta, get_power, modified_area
+from core import gen_age, gen_theta, gen_power, gen_x_y
 from core import get_ca_amplitude
 
 
@@ -40,11 +40,11 @@ def create_cluster(stations):
 
 def create_params():
     """Задаём параметры ливня"""
-    theta = get_theta()  # Тета в градусах
+    theta = gen_theta()  # Тета в градусах
     phi = rn.uniform(0, 360)  # и фи в градусах
-    x0, y0 = modified_area()
-    power = get_power()
-    age = get_age(power, theta)
+    x0, y0 = gen_x_y()
+    power = gen_power()
+    age = gen_age(power, theta)
     return {
         'theta': theta,
         'phi': phi,
@@ -159,8 +159,8 @@ def create_event(clusters, count_event, params):
 
 
 if __name__ == '__main__':
-    nevod_eas = Facility(geometry='nevod')  # Создали НЕВОД
-    flat_eas = Facility(geometry='flat')  # Создали плоскую установку
+    nevod_eas = Facility(configuration='nevod')  # Создали НЕВОД
+    flat_eas = Facility(configuration='flat')  # Создали плоскую установку
     count_event = 10000
 
     # Файлы для установки НЕВОД

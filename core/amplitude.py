@@ -19,7 +19,7 @@ variance = (pi**2) * (wid**2) / 6
 det_threshold = xc / 8  # Порог срабатывания детектора
 
 
-def get_amplitude():
+def gen_amplitude():
     """Возвращает случайную амплитуду на прохождение одиночног мюона"""
     _enabled_gen = True  # Вкл/Выкл генератор
     if _enabled_gen:
@@ -33,7 +33,7 @@ def get_amplitude():
         return get_av_amplitude()
 
 
-def get_amplitudes(p):
+def gen_amplitudes(p):
     """Возвращает амплитуду от прохождения p частиц"""
     ampl = 0.0
     if p == 0:
@@ -41,9 +41,9 @@ def get_amplitudes(p):
     else:
         for j in range(int(p)):
             # Вычисляем амплитуду в детекторе
-            ampl += get_amplitude()
+            ampl += gen_amplitude()
         # Добавим десятичную часть
-        ampl += (get_amplitude() * modf(p)[0])
+        ampl += (gen_amplitude() * modf(p)[0])
 
         if ampl < det_threshold:
             ampl = 0.0

@@ -10,8 +10,8 @@ g_ratio = (1 + 5 ** 0.5) / 2  # Золотое сечение
 m_radius = 71  # Радиус Мольера [м]
 light_speed = 0.299792458  # Скорость света
 
-time_dist_func = []
-tau = 5 / sqrt(3)
+time_dist_func = []  # Функция распределения для случайной поправки ко времени
+tau = 5 / sqrt(3)  # Параметр тау
 
 for i in range(300):
     # Заполняем функцию распределения
@@ -23,7 +23,7 @@ for i in range(300):
     time_dist_func.append(new_element)
 
 
-def randomize_time():
+def gen_rndm_time():
     """Возвращает случайную поправку ко времени срабатывания станции"""
     gm = rn.random()
     for j in range(300):
@@ -56,21 +56,21 @@ def get_distance(st_coord, n, x0, y0):
     # Вектор от станции до точки прихода ШАЛ
     a = array([st_coord[0] - x0, st_coord[1] - y0, st_coord[2]])
     b = cross(a, n)  # Векторное произведение вектора a на вектор ШАЛ
-    # Возвращаем модуль векторного произведения, т.к длина n равна единице
+    # Возвращаем модуль векторного произведения, т.к длина vector равна единице
     return norm(b, ord=2)
 
 
-def modified_area():
+def gen_x_y():
     """Более эффективные координаты ШАЛ"""
     x = rn.uniform(-40, 80)
     y = rn.uniform(-60, 80)
 
     if y < -20 and not -20 < x < 20:
-        return modified_area()
+        return gen_x_y()
     return x, y
 
 
-def get_theta():
+def gen_theta():
     """Методом Неймана получаем случайный зенитный угол"""
     while True:
         kx1 = rn.random()
@@ -82,12 +82,12 @@ def get_theta():
             return kx11 * (180/pi)
 
 
-def get_phi():
+def gen_phi():
     """Получаем случайный азимутальный угол"""
     return rn.uniform(0, 360)
 
 
-def get_power():
+def gen_power():
     """Получаем мощность методом обратных функций"""
     beta = 2.5  # Показатель степени
     a = 10**5  # Нижняя граница диапазона мощности
@@ -101,7 +101,7 @@ def get_power():
     return power
 
 
-def get_age(power, theta):
+def gen_age(power, theta):
     """Генератор значений возраста"""
     theta_rad = theta * (pi/180)  # Перевели тета в радианы
 
